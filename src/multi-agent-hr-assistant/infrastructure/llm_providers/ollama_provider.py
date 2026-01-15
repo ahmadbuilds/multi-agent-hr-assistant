@@ -1,6 +1,6 @@
 from langchain_ollama import ChatOllama
 
-def create_model_instance(model_name:str="qwen2.5:3b",temperature:float=0,total_retries:int=3):
+def create_model_instance(model_name:str="phi3:mini",temperature:float=0,total_retries:int=3):
     model=ChatOllama(
         model=model_name,
         temperature=temperature,
