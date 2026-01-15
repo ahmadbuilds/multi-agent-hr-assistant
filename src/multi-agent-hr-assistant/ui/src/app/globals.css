@@ -1,0 +1,130 @@
+@import "tailwindcss";
+
+@theme {
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
+  --animate-fade-in: fadeIn 0.5s ease-out forwards;
+}
+
+@layer base {
+  :root {
+    /* High Contrast Midnight Theme */
+    /* Background: Deep Slate-Blue, kept dark but cleaner */
+    --background: 224 71% 4%; 
+    --foreground: 0 0% 100%; /* Pure White for max readability */
+
+    /* Card: Lighter separation for readable content blocks */
+    --card: 222 47% 10%;
+    --card-foreground: 0 0% 100%;
+
+    --popover: 222 47% 10%;
+    --popover-foreground: 0 0% 100%;
+
+    /* Primary: Electric Indigo - vibrant but readable */
+    --primary: 250 95% 64%; 
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary: Clearer separation */
+    --secondary: 217 33% 18%;
+    --secondary-foreground: 0 0% 100%;
+
+    /* Muted: Brighter for better legibility */
+    --muted: 217 33% 15%;
+    --muted-foreground: 215 20% 75%; /* Significantly brighter (was 65%) */
+
+    --accent: 217 33% 20%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Border: Subtle but visible borders aid readability */
+    --border: 217 33% 20%;
+    --input: 217 33% 20%;
+    
+    --ring: 250 95% 64%;
+
+    --radius: 0.75rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html, body {
+    @apply h-full w-full overflow-hidden;
+  }
+  body {
+    font-family: var(--font-sans), sans-serif;
+    background-color: hsl(var(--background));
+    /* Reduced atmospheric noise for cleaner reading */
+    background-image: radial-gradient(circle at 50% -20%, hsl(var(--primary)/0.1), transparent 40%);
+    background-attachment: fixed;
+  }
+}
+
+/* Premium Slim Scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--muted)/0.3); /* Slightly visible track aids usage */
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground)/0.3); 
+  border-radius: 99px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--primary)/0.8);
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes accordion-down {
+  from { height: 0; }
+  to { height: var(--radix-accordion-content-height); }
+}
+
+@keyframes accordion-up {
+  from { height: var(--radix-accordion-content-height); }
+  to { height: 0; }
+}
