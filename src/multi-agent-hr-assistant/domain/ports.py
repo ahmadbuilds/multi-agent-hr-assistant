@@ -8,7 +8,7 @@ class IDocumentIngestor(ABC):
     """
 
     @abstractmethod
-    def add_documents(self, documents: list):
+    def add_documents(self, documents: str):
         """
         Add documents to the vector store.
         :param documents: List of documents to be added.
