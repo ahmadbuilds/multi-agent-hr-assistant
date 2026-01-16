@@ -2,10 +2,10 @@ from domain.ports import IDocumentIngestor
 from hashlib import sha256
 from datetime import datetime
 from supabase import create_client, Client
+from langchain.tools import tool
 
 #Implementing the Abstract function
 class DocumentIngestor(IDocumentIngestor):
-
     #function to hash the text
     def has_function(self, text:str)->str:
         """
@@ -13,4 +13,3 @@ class DocumentIngestor(IDocumentIngestor):
         """
         return sha256(text.encode(str="utf-8")).hexdigest()
 
-        
