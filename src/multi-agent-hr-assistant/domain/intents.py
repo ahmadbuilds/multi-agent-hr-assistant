@@ -5,7 +5,7 @@ IntentType=Literal[
     "Leave_Request",
     "Complaint_filing",
     "Clarification",
-    "Unknown",
+    "General_Chat",
 ]
 
 AgentName=Literal[
