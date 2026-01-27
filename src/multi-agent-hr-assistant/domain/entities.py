@@ -3,7 +3,7 @@ from domain.entities import IntentType
 #pydantic model to represent user query
 class UserQuery(BaseModel):
     query:str=Field(description="query string from the user which needs to be answered")
-    isUploaded:bool=Field(description="boolean flag to indicate if the user has uploaded any document or not")
+    UploadedText:str=Field(description="optional text uploaded by the user to provide context to the query",default="")
     isAdmin:bool=Field(description="boolean flag to indicate the Manipulation of Policy Documents")
 
 
