@@ -29,6 +29,12 @@ class HITLState(BaseModel):
     #options for the user to choose from
     options: Sequence[UserResponseType]=[]
 
+    #HITL intervention agent
+    agent: AgentName="Supervisor"
+
+    #Counter for attempts made to get user response
+    attempts: int=0
+
     #flag to indicate if waiting for user response
     waiting_for_user: bool = False
 
@@ -38,8 +44,8 @@ class ClerkState(BaseModel):
     user_query:UserQuery
     messages: Annotated[Sequence[BaseMessage], add_messages] = []
 
-    #user ID for getting leave balance/filing complaint
-    user_id: Optional[str] = None
+    #user email for getting leave balance/filing complaint
+    user_email:Optional[str] = None
 
     #Clerk Action to be performed
     action:ClerkActionType
