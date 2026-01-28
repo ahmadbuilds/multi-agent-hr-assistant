@@ -21,7 +21,7 @@ UserResponseType=Literal[
 
 ClerkActionType=Literal[
     "get_balance",
-    "file_complaint",
+    "ticket_creation",
 ]
 
 LibrarianActionType=Literal[
