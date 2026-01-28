@@ -44,9 +44,6 @@ class ClerkState(BaseModel):
     user_query:UserQuery
     messages: Annotated[Sequence[BaseMessage], add_messages] = []
 
-    #user email for getting leave balance/filing complaint
-    user_email:Optional[str] = None
-
     #Clerk Action to be performed
     action:ClerkActionType
 
