@@ -30,3 +30,15 @@ LibrarianActionType=Literal[
     "delete_policy",
     "update_policy",
 ]
+
+TicketType=Literal[
+    "complaint",
+    "help",
+    "leave",
+]
+
+TicketStatusType=Literal[
+    "in_progress",
+    "accepted",
+    "rejected",
+]
