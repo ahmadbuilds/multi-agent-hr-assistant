@@ -1,37 +1,26 @@
 from abc import ABC,abstractmethod
+from domain.entities import TicketCreation
+#Interface for the Clerk Agent 
+class LeaveBalancePort(ABC):
 
-
-#Interface for the Document Ingestion
-class IDocumentIngestor(ABC):
-    """
-    Abstract base class for ChromaDB vector store database operations.
-    """
-
+    #abstract method to get leave balance
     @abstractmethod
-    def add_documents(self, documents: str):
+    def get_leave_balance(self)->int:
         """
-        Add documents to the vector store.
-        :param documents: List of documents to be added.
+        Method to get leave balance for the current logged in user
+        Returns:
+            int: leave balance in days
         """
         pass
-
+class TicketCreationPort(ABC):
+    #abstract method to create a ticket
     @abstractmethod
-    def delete_documents(self):
+    def create_ticket(self,ticket_data:TicketCreation)->bool:
         """
-        Delete Documents from the vector store
-        """
-        pass
-
-    @abstractmethod
-    def update_documents(self):
-        """ 
-        Update Documents from the vector store
-        """
-        pass
-    
-    @abstractmethod
-    def delete_all_documents():
-        """
-        Delete all the documents from the vector store
+        Method to create a ticket based on the provided ticket data
+        Args:
+            ticket_data (TicketCreation): data required to create a ticket
+        Returns:
+            bool: True if ticket creation is successful, False otherwise
         """
         pass
