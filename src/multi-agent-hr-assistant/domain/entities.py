@@ -5,8 +5,8 @@ from typing import Optional
 #pydantic model to represent user query
 class UserQuery(BaseModel):
     query:str=Field(description="query string from the user which needs to be answered")
-    UploadedText:str=Field(description="optional text uploaded by the user to provide context to the query",default="")
-    isAdmin:bool=Field(description="boolean flag to indicate the Manipulation of Policy Documents")
+    UploadedText:Optional[str]=Field(description="optional text uploaded by the user to provide context to the query",default="")
+    isAdmin:Optional[bool]=Field(description="boolean flag to indicate the Manipulation of Policy Documents", default=None)
 
 
 #pydantic model for Supervisor Structured Output
