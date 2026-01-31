@@ -16,6 +16,7 @@ class ClerkAgent:
     def __init__(self, llm_model:BaseChatModel, leave_balance_port:LeaveBalancePort):
         self.llm_model=llm_model
         self.leave_balance_port=leave_balance_port
+
     #Model Node for Clerk Agent
     def Clerk_Outer_Model_Node(self, state:ClerkState)->dict:
         """
@@ -52,31 +53,63 @@ class ClerkAgent:
         """
         Inner Model Node for Clerk Agent to handle individual tasks based on the action type.
         """
-        current_task=state.pending_tasks.popleft()
-        formatted_prompt=Clerk_Inner_Model_Prompt.format_messages(
-                current_task=current_task,
-                user_query=state.user_query.query
-            )
-        structured_llm_model=self.llm_model.with_structured_output(ClerkClassificationState)
-        response=structured_llm_model.invoke([formatted_prompt]+state.messages)
-        
-        if current_task.action=="general_information" or current_task.action=="get_balance":
-            state.final_response.append(response)
-            return{
-                "messages":state.messages+[AIMessage(content=response.model_dump_json())],
+        try:
+            current_task=state.pending_tasks.popleft()
+            formatted_prompt=Clerk_Inner_Model_Prompt.format_messages(
+                    current_task=current_task,
+                    user_query=state.user_query.query
+                )
+            structured_llm_model=self.llm_model.with_structured_output(ClerkClassificationState)
+            response=structured_llm_model.invoke([formatted_prompt]+state.messages)
+            
+            if current_task.action=="general_information" or current_task.action=="get_balance":
+                state.final_response.append(response)
+                return{
+                    "messages":state.messages+[AIMessage(content=response.model_dump_json())],
+                    "final_response":state.final_response
+                }
+        except Exception as e:
+            print(f"Exception in Clerk Inner Model Node: {e}")
+            return {
+                "messages":state.messages,
                 "final_response":state.final_response
             }
-
     #Clerk Tool Execution Node
     def Clerk_Tool_Execution_Node(self, state:ClerkState)->dict:
         """
         Tool Execution Node for Clerk Agent to execute tools based on the action type.
         """
-        tool_execution=state.final_response[-1]
+        tool_execution:ClerkClassificationState = state.final_response[-1]
         if tool_execution.action=="get_balance":
-            get_balance_tool=make_get_leave_balance_tool(self.leave_balance_port)
-            balance=get_balance_tool.run(user_query=state.user_query.query)
-            state.tool_results.append({"leave_balance":balance})
-            return{
-                "tool_results":state.tool_results
-            }
+            already_executed=any(
+                result.get("action")=="get_balance" for result in state.tool_results
+            )
+
+            if not already_executed:
+                counter=3
+                while counter>0:
+                    try:
+                        leave_balance_tool=make_get_leave_balance_tool(self.leave_balance_port)
+                        leave_balance:int=leave_balance_tool()
+                        state.tool_results.append({
+                            "action":"get_balance",
+                            "success":True,
+                            "data":{"leave_balance":leave_balance},
+                            "error":None,
+                        })
+                        break
+                    except Exception as e:
+                        print("Error executing get_balance tool:Retrying...", str(e))
+                        counter-=1
+                        if counter==0:
+                            print("Failed to execute get_balance tool after multiple attempts.")
+                            state.tool_results.append({
+                                "action":"get_balance",
+                                "success":False,
+                                "data":None,
+                                "error":str(e),
+                            })
+        return {
+            "tool_results":state.tool_results,
+        }
+            
