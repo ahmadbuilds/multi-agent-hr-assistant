@@ -2,6 +2,7 @@ from pydantic import BaseModel,Field
 from domain.entities import IntentType
 from domain.intents import TicketType,TicketStatusType
 from typing import Optional
+from application.states import ClerkClassificationState
 #pydantic model to represent user query
 class UserQuery(BaseModel):
     query:str=Field(description="query string from the user which needs to be answered")
@@ -21,3 +22,7 @@ class TicketCreation(BaseModel):
     description:str=Field(description="detailed description of the ticket")
     status:TicketStatusType=Field(description="current status of the ticket",default="in_progress")
     leave_days:Optional[int]=Field(description="number of leave days requested, applicable only for leave tickets",default=None)
+
+#pydantic model for Multiple Tasks output of Clerk Agent
+class ClerkMultipleTasksOutput(BaseModel):
+    tasks:list[ClerkClassificationState]=Field(description="list of classified tasks by the Clerk Agent in structured format")
