@@ -20,6 +20,7 @@ UserResponseType=Literal[
 ]
 
 ClerkActionType=Literal[
+    "general_information",
     "get_balance",
     "ticket_creation",
 ]
