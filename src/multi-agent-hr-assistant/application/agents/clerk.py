@@ -37,7 +37,7 @@ class ClerkAgent:
                 "pending_tasks":deque()
             }
     #Decision Node for Clerk Agent
-    def Clerk_Decision_Node(state:ClerkState)->Literal["clerk_inner_model_node","final_response_node"]:
+    def Clerk_Decision_Node(self,state:ClerkState)->Literal["clerk_inner_model_node","final_response_node"]:
         """
         Decision Node for Clerk Agent to decide whether to proceed to Inner Model Node
         or to Final Response Node based on the pending tasks in the Clerk State.
@@ -61,7 +61,7 @@ class ClerkAgent:
         response=structured_llm_model.invoke([formatted_prompt]+state.messages)
         
         if current_task.action=="general_information" or current_task.action=="get_balance":
-            state.final_response.append(current_task)
+            state.final_response.append(response)
             return{
                 "messages":state.messages+[AIMessage(content=response.model_dump_json())],
                 "final_response":state.final_response
