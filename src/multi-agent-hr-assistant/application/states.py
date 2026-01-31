@@ -4,6 +4,7 @@ from domain.intents import IntentType, AgentName, LibrarianActionType, UserRespo
 from domain.entities import UserQuery
 from langgraph.graph.message import add_messages
 from pydantic import BaseModel
+from collections import deque
 #pydantic model for Supervisor State
 class SupervisorState(BaseModel):
     #General State for Supervisor Agent
@@ -38,6 +39,11 @@ class HITLState(BaseModel):
     #flag to indicate if waiting for user response
     waiting_for_user: bool = False
 
+#pydantic Model for Clerk Classification
+class ClerkClassificationState(BaseModel):
+    action:ClerkActionType
+    details: Optional[dict]=None
+
 #pydantic model for clerk State
 class ClerkState(BaseModel):
     #General State for Clerk Agent
@@ -45,10 +51,13 @@ class ClerkState(BaseModel):
     messages: Annotated[Sequence[BaseMessage], add_messages] = []
 
     #Clerk Action to be performed
-    action:ClerkActionType
+    pending_tasks:deque[ClerkClassificationState]=deque()
+
+    #Results from tool execution, if any
+    tool_results: list[dict | int | bool] = []
 
     #final response to be returned to the Supervisor
-    api_response: Optional[dict] = None
+    final_response: deque[ClerkClassificationState] = deque()
 
 #pydantic model for Librarian State
 class LibrarianState(BaseModel):
