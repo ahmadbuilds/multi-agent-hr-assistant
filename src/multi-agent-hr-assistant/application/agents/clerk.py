@@ -6,7 +6,7 @@ from domain.prompts.clerk_prompt import Clerk_Classification_prompt,Clerk_Inner_
 from domain.entities import ClerkMultipleTasksOutput
 from states import ClerkClassificationState, ClerkState
 from langchain.chat_models import BaseChatModel
-from langgraph.graph import END
+from langgraph.graph import END,StateGraph,START
 from typing import Literal
 from collections import deque
 from langchain_core.messages import AIMessage
@@ -130,4 +130,32 @@ class ClerkAgent:
             except Exception as e:
                 print(f"Exception in Clerk Final Response Node: {e}. Retrying...")
                 counter-=1
+    
+    #Function to create the Clerk Agent State Graph
+    def create_clerk_agent_graph(self)->StateGraph:
+        clerk_graph=StateGraph(ClerkState)
         
+        #adding nodes to the clerk agent graph
+        clerk_graph.add_node("clerk_outer_model_node", self.Clerk_Outer_Model_Node)
+        clerk_graph.add_node("clerk_decision_node", self.Clerk_Decision_Node)
+        clerk_graph.add_node("clerk_inner_model_node", self.Clerk_Inner_Model_Node)
+        clerk_graph.add_node("clerk_tool_execution_node", self.Clerk_Tool_Execution_Node)
+        clerk_graph.add_node("final_response_node", self.Clerk_Final_Response_Node)
+
+        #defining edges between nodes
+        clerk_graph.add_edge(START, "clerk_outer_model_node")
+        clerk_graph.add_conditional_edges(
+            "clerk_outer_model_node",
+            "clerk_decision_node",
+            ["clerk_inner_model_node","final_response_node"]
+        )
+        clerk_graph.add_edge("clerk_inner_model_node", "clerk_tool_execution_node")
+        clerk_graph.add_edge("clerk_tool_execution_node", "clerk_decision_node")
+        clerk_graph.add_edge("final_response_node", END)
+        
+        #Compiling the Graph
+        clerk_agent=clerk_graph.compile()
+        
+        return clerk_agent
+
+    
