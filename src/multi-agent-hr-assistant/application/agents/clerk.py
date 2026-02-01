@@ -1,6 +1,4 @@
-from infrastructure.llm_providers.ollama_provider import create_model_instance
 from domain.ports import LeaveBalancePort
-from infrastructure.adapters.clerk_leave_balance_adapter import ClerkLeaveBalanceAdapter
 from domain.tools.clerk_tool import make_get_leave_balance_tool
 from domain.prompts.clerk_prompt import Clerk_Classification_prompt,Clerk_Inner_Model_Prompt,Clerk_Final_Response_Prompt
 from domain.entities import ClerkMultipleTasksOutput
