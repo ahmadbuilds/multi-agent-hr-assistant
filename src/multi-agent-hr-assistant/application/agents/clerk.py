@@ -2,7 +2,7 @@ from domain.ports import LeaveBalancePort
 from domain.tools.clerk_tool import make_get_leave_balance_tool
 from domain.prompts.clerk_prompt import Clerk_Classification_prompt,Clerk_Inner_Model_Prompt,Clerk_Final_Response_Prompt
 from domain.entities import ClerkMultipleTasksOutput
-from states import ClerkClassificationState, ClerkState
+from application.states import ClerkClassificationState, ClerkState
 from langchain.chat_models import BaseChatModel
 from langgraph.graph import END,StateGraph,START
 from typing import Literal
@@ -142,10 +142,14 @@ class ClerkAgent:
 
         #defining edges between nodes
         clerk_graph.add_edge(START, "clerk_outer_model_node")
+        clerk_graph.add_edge("clerk_outer_model_node", "clerk_decision_node")
         clerk_graph.add_conditional_edges(
-            "clerk_outer_model_node",
             "clerk_decision_node",
-            ["clerk_inner_model_node","final_response_node"]
+            lambda state:state.next_step,
+            {
+                "inner":"clerk_inner_model_node",
+                "final":"final_response_node"
+            }
         )
         clerk_graph.add_edge("clerk_inner_model_node", "clerk_tool_execution_node")
         clerk_graph.add_edge("clerk_tool_execution_node", "clerk_decision_node")
@@ -158,4 +162,11 @@ class ClerkAgent:
 
     #function to display the clerk agent graph
     def display_clerk_agent_graph(self,agent:StateGraph):
-        display(Image(agent.get_graph(xray=True).draw_mermaid_png()))
+        png_bytes =agent.get_graph(xray=True).draw_mermaid_png()
+
+         # Save to file
+        with open("clerk_agent_graph.png", "wb") as f:
+            f.write(png_bytes)
+
+        # Still display it in notebook
+        display(Image(png_bytes))
