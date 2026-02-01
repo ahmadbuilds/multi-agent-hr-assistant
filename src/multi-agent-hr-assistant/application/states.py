@@ -57,7 +57,7 @@ class ClerkState(BaseModel):
     tool_results: list[dict | int | bool] = []
 
     #final response to be returned to the Supervisor
-    final_response: deque[ClerkClassificationState] = deque()
+    final_response: deque[ClerkClassificationState] = deque()   
 
 #pydantic model for Librarian State
 class LibrarianState(BaseModel):
