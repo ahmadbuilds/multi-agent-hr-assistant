@@ -1,5 +1,6 @@
 from abc import ABC,abstractmethod
 from domain.entities import TicketCreation
+from application.states import ClerkState
 #Interface for the Clerk Agent 
 class LeaveBalancePort(ABC):
 
@@ -22,5 +23,17 @@ class TicketCreationPort(ABC):
             ticket_data (TicketCreation): data required to create a ticket
         Returns:
             bool: True if ticket creation is successful, False otherwise
+        """
+        pass
+
+class ClerkGraphExecutionPort(ABC):
+    @abstractmethod
+    def execute_clerk_agent_graph(self,state:ClerkState)->None:
+        """
+        Method to execute the Clerk Agent State Graph
+        Args:
+            state (ClerkState): Current state of the Clerk Agent
+        Returns:
+            None
         """
         pass
