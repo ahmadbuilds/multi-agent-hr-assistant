@@ -1,10 +1,10 @@
 from domain.ports import LeaveBalancePort
 import requests
-from config import CLERK_API_URL
+from config import CLERK_API_KEY
 #Adapter class to interact with Clerk Leave Balance API
 class ClerkLeaveBalanceAdapter(LeaveBalancePort):
     def __init__(self):
-        self.api_url = CLERK_API_URL
+        self.api_key = CLERK_API_KEY
     def get_leave_balance(self) -> int:
         """
         Method to get leave balance for the current logged in user
