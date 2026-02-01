@@ -10,7 +10,7 @@ from langgraph.graph import END,StateGraph,START
 from typing import Literal
 from collections import deque
 from langchain_core.messages import AIMessage
-
+from IPython.display import Image,display
 #Clerk Agent Class Implementation
 class ClerkAgent:
     def __init__(self, llm_model:BaseChatModel, leave_balance_port:LeaveBalancePort):
@@ -158,4 +158,6 @@ class ClerkAgent:
         
         return clerk_agent
 
-    
+    #function to display the clerk agent graph
+    def display_clerk_agent_graph(self,agent:StateGraph):
+        display(Image(agent.get_graph(xray=True).draw_mermaid_png()))
