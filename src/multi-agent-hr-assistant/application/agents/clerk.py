@@ -2,7 +2,7 @@ from infrastructure.llm_providers.ollama_provider import create_model_instance
 from domain.ports import LeaveBalancePort
 from infrastructure.adapters.clerk_leave_balance_adapter import ClerkLeaveBalanceAdapter
 from domain.tools.clerk_tool import make_get_leave_balance_tool
-from domain.prompts.clerk_prompt import Clerk_Classification_prompt,Clerk_Inner_Model_Prompt
+from domain.prompts.clerk_prompt import Clerk_Classification_prompt,Clerk_Inner_Model_Prompt,Clerk_Final_Response_Prompt
 from domain.entities import ClerkMultipleTasksOutput
 from states import ClerkClassificationState, ClerkState
 from langchain.chat_models import BaseChatModel
@@ -112,4 +112,22 @@ class ClerkAgent:
         return {
             "tool_results":state.tool_results,
         }
-            
+
+    #Final Response Node for Clerk Agent
+    def Clerk_Final_Response_Node(self,state:ClerkState)->END:
+        """
+        final response node for Clerk Agent to compile final responses based on the tool results and final responses.
+        """ 
+        formatted_prompt=Clerk_Final_Response_Prompt.format_messages(
+                final_response=list(state.final_response),
+                tool_results=state.tool_results
+            )      
+        counter=3
+        while counter>0:
+            try:
+                response=self.llm_model.invoke([formatted_prompt]+state.messages)
+                return END
+            except Exception as e:
+                print(f"Exception in Clerk Final Response Node: {e}. Retrying...")
+                counter-=1
+        
