@@ -1,14 +1,15 @@
-from typing import Literal, Optional, Optional,Sequence,Annotated,TypedDict
+from __future__ import annotations
+from typing import Optional, Optional,Sequence,Annotated,TypedDict, TYPE_CHECKING
 from langchain_core.messages import BaseMessage
 from domain.intents import IntentType, AgentName, LibrarianActionType, UserResponseType,ClerkActionType
-from domain.entities import UserQuery
+from domain.entities import ClerkClassificationState, UserQuery
 from langgraph.graph.message import add_messages
 from pydantic import BaseModel
 from collections import deque
 #pydantic model for Supervisor State
 class SupervisorState(BaseModel):
     #General State for Supervisor Agent
-    user_query:UserQuery
+    user_query: UserQuery
     messages: Annotated[Sequence[BaseMessage], add_messages] = []
 
     #Current working agent and identified intent
@@ -39,15 +40,10 @@ class HITLState(BaseModel):
     #flag to indicate if waiting for user response
     waiting_for_user: bool = False
 
-#pydantic Model for Clerk Classification
-class ClerkClassificationState(BaseModel):
-    action:ClerkActionType
-    details: Optional[dict]=None
-
 #pydantic model for clerk State
 class ClerkState(BaseModel):
     #General State for Clerk Agent
-    user_query:UserQuery
+    user_query: UserQuery
     messages: Annotated[Sequence[BaseMessage], add_messages] = []
 
     #Clerk Action to be performed
@@ -62,7 +58,7 @@ class ClerkState(BaseModel):
 #pydantic model for Librarian State
 class LibrarianState(BaseModel):
     #General State for Librarian Agent
-    user_query:UserQuery
+    user_query: UserQuery
     messages: Annotated[Sequence[BaseMessage], add_messages] = []
 
     #Librarian Action to be performed
