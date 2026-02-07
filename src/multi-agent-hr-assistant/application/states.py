@@ -1,7 +1,7 @@
 from __future__ import annotations
-from typing import Optional, Optional,Sequence,Annotated,TypedDict, TYPE_CHECKING
+from typing import Optional, Optional,Sequence,Annotated
 from langchain_core.messages import BaseMessage
-from domain.intents import IntentType, AgentName, LibrarianActionType, UserResponseType,ClerkActionType
+from domain.intents import IntentType, AgentName, LibrarianActionType, UserResponseType
 from domain.entities import ClerkClassificationState, UserQuery
 from langgraph.graph.message import add_messages
 from pydantic import BaseModel
