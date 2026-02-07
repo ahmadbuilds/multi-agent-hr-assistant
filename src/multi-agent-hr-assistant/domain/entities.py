@@ -1,5 +1,5 @@
 from pydantic import BaseModel,Field
-from domain.intents import IntentType,TicketType,TicketStatusType,ClerkActionType
+from domain.intents import IntentType,TicketType,TicketStatusType,ClerkActionType,AgentName
 from typing import Optional
 #pydantic model to represent user query
 class UserQuery(BaseModel):
@@ -29,3 +29,9 @@ class ClerkClassificationState(BaseModel):
 #pydantic model for Multiple Tasks output of Clerk Agent
 class ClerkMultipleTasksOutput(BaseModel):
     tasks:list[ClerkClassificationState]=Field(description="list of classified tasks by the Clerk Agent in structured format")
+
+#pydantic model for Saving state of Agent on Redis Server
+class AgentState(BaseModel):
+    user_id:str=Field(description="unique identifier for the user associated with this agent state")
+    key:str=Field(description="unique key to identify the agent state in Redis")
+    state:dict=Field(description="state of the agent to be saved in Redis")
