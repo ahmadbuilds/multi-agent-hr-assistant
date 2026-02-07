@@ -6,7 +6,8 @@ class UserQuery(BaseModel):
     query:str=Field(description="query string from the user which needs to be answered")
     UploadedText:Optional[str]=Field(description="optional text uploaded by the user to provide context to the query",default="")
     isAdmin:Optional[bool]=Field(description="boolean flag to indicate the Manipulation of Policy Documents", default=None)
-
+    conversation_id:str=Field(description="unique identifier for the conversation, used for maintaining context across interactions")
+    user_id:Optional[str]=Field(description="unique identifier for the user, used for maintaining context and state across interactions",default=None)
 
 #pydantic model for Supervisor Structured Output
 class Supervisor_structured_output(BaseModel):
