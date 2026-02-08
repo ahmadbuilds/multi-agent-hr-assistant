@@ -3,7 +3,8 @@ from application.states import ClerkState
 from application.agents.clerk import ClerkAgent
 from infrastructure.llm_providers.ollama_provider import create_model_instance
 from infrastructure.adapters.clerk_leave_balance_adapter import ClerkLeaveBalanceAdapter
-
+from infrastructure.redis.redis_client import save_agent_state
+from domain.entities import AgentState
 class SupervisorClerkGraphExecutor(ClerkGraphExecutionPort):
     def __init__(self,state:ClerkState):
         self.clerk_state=state
@@ -17,7 +18,19 @@ class SupervisorClerkGraphExecutor(ClerkGraphExecutionPort):
 
             #Creating the Clerk Agent Graph
             clerk_graph=clerk_agent.create_clerk_agent_graph(self.clerk_state)
-        
+            
+            #Agent State to be saved in Redis before execution
+            agent_state=AgentState(
+                user_id=self.clerk_state.user_query.user_id,
+                key=self.clerk_state.user_query.conversation_id,
+                state={
+                    "final_response":"",
+                }
+            )
+
+            #calling the Redis function to save the initial state of the Clerk Agent before execution
+            save_agent_state(agent_state)
+
             #Executing the Clerk Agent Graph
             clerk_graph.execute()
         except Exception as e:
