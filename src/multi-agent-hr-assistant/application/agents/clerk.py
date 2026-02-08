@@ -9,6 +9,7 @@ from typing import Literal
 from collections import deque
 from langchain_core.messages import AIMessage
 from IPython.display import Image,display
+from infrastructure.redis.redis_client import save_agent_state,get_agent_state
 #Clerk Agent Class Implementation
 class ClerkAgent:
     def __init__(self, llm_model:BaseChatModel, leave_balance_port:LeaveBalancePort):
@@ -124,6 +125,13 @@ class ClerkAgent:
         while counter>0:
             try:
                 response=self.llm_model.invoke([formatted_prompt]+state.messages)
+                user_id=state.user_query.user_id
+                conversation_id=state.user_query.conversation_id
+                #updating the final response in Redis after successful execution
+                agent_state=get_agent_state(user_id,conversation_id)
+                if agent_state:
+                    agent_state.state["final_response"]=response
+                    save_agent_state(agent_state)
                 return END
             except Exception as e:
                 print(f"Exception in Clerk Final Response Node: {e}. Retrying...")
