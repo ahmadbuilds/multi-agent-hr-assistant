@@ -1,6 +1,6 @@
 from abc import ABC,abstractmethod
 from domain.entities import TicketCreation
-from application.states import ClerkState
+from application.states import ClerkState, LibrarianState
 #Interface for the Clerk Agent 
 class LeaveBalancePort(ABC):
 
@@ -33,6 +33,18 @@ class ClerkGraphExecutionPort(ABC):
         Method to execute the Clerk Agent State Graph
         Args:
             state (ClerkState): Current state of the Clerk Agent
+        Returns:
+            None
+        """
+        pass
+
+class LibrarianGraphExecutionPort(ABC):
+    @abstractmethod
+    def execute_librarian_agent_graph(self,state:LibrarianState)->None:
+        """
+        Method to execute the Librarian Agent State Graph
+        Args:
+            state (LibrarianState): Current state of the Librarian Agent
         Returns:
             None
         """
