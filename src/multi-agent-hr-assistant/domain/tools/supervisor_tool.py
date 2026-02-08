@@ -7,7 +7,7 @@ def make_supervisor_execute_clerk_graph_tool(executor:ClerkGraphExecutionPort):
         name="execute_clerk_graph",
         description="Use this tool to execute the Clerk Agent State Graph for handling HR related queries."
     )
-    def execute_clerk_graph()->dict:
+    def execute_clerk_graph()->None:
         """
         Tool function to execute the Clerk Agent State Graph
         Args:
@@ -15,6 +15,4 @@ def make_supervisor_execute_clerk_graph_tool(executor:ClerkGraphExecutionPort):
         Returns:
             None
         """
-        #need to implement redis for completion
-        executor.execute_clerk_agent_graph()
-        return {}
+        return executor.execute_clerk_agent_graph()
