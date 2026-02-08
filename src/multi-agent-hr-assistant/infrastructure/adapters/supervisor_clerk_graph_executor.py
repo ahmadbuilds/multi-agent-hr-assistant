@@ -24,15 +24,26 @@ class SupervisorClerkGraphExecutor(ClerkGraphExecutionPort):
                 user_id=self.clerk_state.user_query.user_id,
                 key=self.clerk_state.user_query.conversation_id,
                 state={
+                    "status":"initialized",
                     "final_response":"",
+                    "error":None
                 }
             )
 
             #calling the Redis function to save the initial state of the Clerk Agent before execution
             save_agent_state(agent_state)
 
+            agent_state.state["status"]="running"
+            save_agent_state(agent_state)
+
             #Executing the Clerk Agent Graph
             clerk_graph.execute()
+
+            agent_state.state["status"]="completed"
+            save_agent_state(agent_state)
         except Exception as e:
-            print("Error Executing Clerk Agent Graph:", str(e))
-            return
+            if agent_state:
+                agent_state.state["status"]="error"
+                agent_state.state["error"]=str(e)
+                save_agent_state(agent_state)
+            raise RuntimeError(f"Failed to execute Clerk Agent Graph: {str(e)}")
