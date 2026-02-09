@@ -1,6 +1,6 @@
 from pydantic import BaseModel,Field
 from domain.intents import IntentType,TicketType,TicketStatusType,ClerkActionType,AgentName
-from typing import Optional
+from typing import Optional,Literal, Union
 #pydantic model to represent user query
 class UserQuery(BaseModel):
     query:str=Field(description="query string from the user which needs to be answered")
@@ -19,13 +19,30 @@ class TicketCreation(BaseModel):
     ticket_type:TicketType=Field(description="type of ticket to be created")
     subject:str=Field(description="subject of the ticket")
     description:str=Field(description="detailed description of the ticket")
-    status:TicketStatusType=Field(description="current status of the ticket",default="in_progress")
+    status:Literal["in_progress"]=Field(description="current status of the ticket",default="in_progress")
     leave_days:Optional[int]=Field(description="number of leave days requested, applicable only for leave tickets",default=None)
 
-#pydantic model for Clerk Classification
-class ClerkClassificationState(BaseModel):
-    action:ClerkActionType
-    details: Optional[dict]=None
+#pydantic models for Clerk Classification
+class TickerCreationClassification(BaseModel):
+    action:Literal["ticket_creation"]=Field(description="action type for ticket creation")
+    details:TicketCreation=Field(description="details of the ticket to be created")
+
+class GetBalanceClassification(BaseModel):
+    action:Literal["get_balance"]=Field(description="action type for getting balance")
+    details:Optional[dict]=Field(description="no details required for get balance action",default=None)
+
+class GeneralInformationResponse(BaseModel):
+    response:str=Field(description="response string containing the general information relevant to the user's query")
+
+class GeneralInformationClassification(BaseModel):
+    action:Literal["general_information"]=Field(description="action type for general information query")
+    details:GeneralInformationResponse=Field(description="details containing the specific informational response relevant to the user's query")
+
+ClerkClassificationState=Union[
+    TickerCreationClassification,
+    GetBalanceClassification,
+    GeneralInformationClassification
+]
 
 #pydantic model for Multiple Tasks output of Clerk Agent
 class ClerkMultipleTasksOutput(BaseModel):
