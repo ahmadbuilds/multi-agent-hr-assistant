@@ -8,7 +8,7 @@ class ClerkTicketCreationAdapter(TicketCreationPort):
     def __init__(self):
         self.clerk_api_key=CLERK_API_KEY
 
-    def create_ticket(self,ticket_data:TicketCreation) -> bool:
+    def create_ticket(self,ticket_data:TicketCreation,user_id:str) -> bool:
         """
         Method to create a ticket based on the provided ticket data
         Args:
@@ -17,7 +17,9 @@ class ClerkTicketCreationAdapter(TicketCreationPort):
             bool: True if ticket creation is successful, False otherwise
         """
         try:
-            response=requests.post(f"{self.clerk_api_key}/ticket_creation",json=ticket_data.model_dump())
+            ticket_data_dict=ticket_data.model_dump()
+            ticket_data_dict["user_id"]=user_id
+            response=requests.post(f"{self.clerk_api_key}/ticket_creation",json=ticket_data_dict)
             response.raise_for_status()
             data=response.json()
             return data.get("status",False)
