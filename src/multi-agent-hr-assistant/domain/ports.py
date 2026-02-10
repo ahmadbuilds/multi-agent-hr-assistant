@@ -16,7 +16,7 @@ class LeaveBalancePort(ABC):
 class TicketCreationPort(ABC):
     #abstract method to create a ticket
     @abstractmethod
-    def create_ticket(self,ticket_data:TicketCreation)->bool:
+    def create_ticket(self,ticket_data:TicketCreation,user_id:str)->bool:
         """
         Method to create a ticket based on the provided ticket data
         Args:
