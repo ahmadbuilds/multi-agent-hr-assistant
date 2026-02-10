@@ -19,7 +19,7 @@ def make_get_leave_balance_tool(leave_balance_port:LeaveBalancePort):
     return get_leave_balance
 
 #wrapper function to create the Clerk Agent Get Balance Tool
-def make_ticket_creation_tool(ticket_creation_port:TicketCreationPort,ticket_data:TicketCreation):
+def make_ticket_creation_tool(ticket_creation_port:TicketCreationPort,ticket_data:TicketCreation,user_id:str):
     @tool(
         name="clerk_create_ticket",
         description="Use this tool to create a ticket for the current logged in user. Input should include subject and description."
@@ -30,6 +30,6 @@ def make_ticket_creation_tool(ticket_creation_port:TicketCreationPort,ticket_dat
         Returns:
             bool: True if ticket creation is successful, False otherwise
         """
-        return ticket_creation_port.create_ticket(ticket_data)
+        return ticket_creation_port.create_ticket(ticket_data,user_id)
     
     return create_ticket
