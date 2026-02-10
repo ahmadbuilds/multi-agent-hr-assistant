@@ -4,10 +4,9 @@ import json
 redis=get_redis_client()
 
 #function to save agent state to Redis
-def save_agent_state(agent_state:AgentState):
+def save_agent_state_for_final_response(agent_state:AgentState):
     try:
         redis.set(
-            agent_state.user_id,
             f"user_id:{agent_state.user_id}:conversation_id:{agent_state.key}:state",
             json.dumps(agent_state.state)
         )
@@ -15,7 +14,7 @@ def save_agent_state(agent_state:AgentState):
         print("Error saving agent state to Redis:", str(e))
 
 #function to retrieve agent state from Redis
-def get_agent_state(user_id:str, key:str) -> dict:
+def get_agent_state_for_final_response(user_id:str, key:str) -> dict:
     try:
         state_json = redis.get(f"user_id:{user_id}:conversation_id:{key}:state")
         if state_json:
@@ -23,6 +22,27 @@ def get_agent_state(user_id:str, key:str) -> dict:
         return {}
     except Exception as e:
         print("Error retrieving agent state from Redis:", str(e))
+        return {}
+
+#function to save the state of the agent for HITL intervention to Redis
+def save_agent_state_for_hitl_intervention(agent_state:AgentState):
+    try:
+        redis.set(
+            f"user_id:{agent_state.user_id}:conversation_id:{agent_state.key}:hitl_state",
+            json.dumps(agent_state.state)
+        )
+    except Exception as e:
+        print("Error saving HITL agent state to Redis:", str(e))
+
+#function to retrieve the state of the agent for HITL intervention from Redis
+def get_agent_state_for_hitl_intervention(user_id:str, key:str) -> dict:
+    try:
+        state_json = redis.get(f"user_id:{user_id}:conversation_id:{key}:hitl_state")
+        if state_json:
+            return json.loads(state_json)
+        return {}
+    except Exception as e:
+        print("Error retrieving HITL agent state from Redis:", str(e))
         return {}
 
 #function to delete agent state from redis based on user_id and key
