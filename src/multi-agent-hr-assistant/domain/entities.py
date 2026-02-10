@@ -1,6 +1,6 @@
 from pydantic import BaseModel,Field
 from domain.intents import IntentType,TicketType,TicketStatusType,ClerkActionType,AgentName
-from typing import Optional,Literal, Union
+from typing import Optional,Literal, Union,TypeAlias
 #pydantic model to represent user query
 class UserQuery(BaseModel):
     query:str=Field(description="query string from the user which needs to be answered")
@@ -38,7 +38,7 @@ class GeneralInformationClassification(BaseModel):
     action:Literal["general_information"]=Field(description="action type for general information query")
     details:GeneralInformationResponse=Field(description="details containing the specific informational response relevant to the user's query")
 
-ClerkClassificationState=Union[
+ClerkClassificationState:TypeAlias=Union[
     TickerCreationClassification,
     GetBalanceClassification,
     GeneralInformationClassification
