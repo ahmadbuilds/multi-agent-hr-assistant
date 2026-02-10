@@ -6,6 +6,7 @@ from domain.entities import ClerkClassificationState, UserQuery
 from langgraph.graph.message import add_messages
 from pydantic import BaseModel
 from collections import deque
+from typing import Literal
 #pydantic model for Supervisor State
 class SupervisorState(BaseModel):
     #General State for Supervisor Agent
@@ -53,7 +54,13 @@ class ClerkState(BaseModel):
     tool_results: list[dict | int | bool] = []
 
     #final response to be returned to the Supervisor
-    final_response: deque[ClerkClassificationState] = deque()   
+    final_response: deque[ClerkClassificationState] = deque()
+
+    #HITL State for Clerk Agent
+    hitl_state:deque[ClerkClassificationState] = deque()
+
+    #next Step for the Clerk Agent to take, can be "clerk_inner_model_node", "hitl_intervention_node" or "final_response_node"
+    next_step: Optional[Literal["inner","final","hitl"]] = None
 
 #pydantic model for Librarian State
 class LibrarianState(BaseModel):
