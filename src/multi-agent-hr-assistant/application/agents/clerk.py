@@ -1,7 +1,7 @@
-from domain.ports import LeaveBalancePort
-from domain.tools.clerk_tool import make_get_leave_balance_tool
+from domain.ports import LeaveBalancePort,TicketCreationPort
+from domain.tools.clerk_tool import make_get_leave_balance_tool,make_ticket_creation_tool
 from domain.prompts.clerk_prompt import Clerk_Classification_prompt,Clerk_Inner_Model_Prompt,Clerk_Final_Response_Prompt
-from domain.entities import ClerkMultipleTasksOutput
+from domain.entities import ClerkMultipleTasksOutput, TicketCreation
 from application.states import ClerkClassificationState, ClerkState
 from langchain.chat_models import BaseChatModel
 from langgraph.graph import END,StateGraph,START
@@ -9,12 +9,13 @@ from typing import Literal
 from collections import deque
 from langchain_core.messages import AIMessage
 from IPython.display import Image,display
-from infrastructure.redis.redis_client import save_agent_state,get_agent_state
+from infrastructure.redis.redis_client import save_agent_state_for_final_response,get_agent_state_for_final_response,publish_event,save_agent_state_for_hitl_intervention
 #Clerk Agent Class Implementation
 class ClerkAgent:
-    def __init__(self, llm_model:BaseChatModel, leave_balance_port:LeaveBalancePort):
+    def __init__(self, llm_model:BaseChatModel, leave_balance_port:LeaveBalancePort,ticket_creation_port:TicketCreationPort):
         self.llm_model=llm_model
         self.leave_balance_port=leave_balance_port
+        self.ticket_creation_port=ticket_creation_port
 
     #Model Node for Clerk Agent
     def Clerk_Outer_Model_Node(self, state:ClerkState)->dict:
@@ -37,16 +38,19 @@ class ClerkAgent:
                 "pending_tasks":deque()
             }
     #Decision Node for Clerk Agent
-    def Clerk_Decision_Node(self,state:ClerkState)->Literal["clerk_inner_model_node","final_response_node"]:
+    def Clerk_Decision_Node(self,state:ClerkState)->Literal["inner","final","hitl"]:
         """
         Decision Node for Clerk Agent to decide whether to proceed to Inner Model Node
         or to Final Response Node based on the pending tasks in the Clerk State.
         """
-        if state.pending_tasks:
-            return "clerk_inner_model_node"
+        if state.hitl_state:
+            state.next_step="hitl"
+        elif state.pending_tasks:
+            state.next_step="inner"
         else:
-            return "final_response_node"
-        
+            state.next_step="final"
+
+        return state.next_step
     #Clerk Inner Model Node
     def Clerk_Inner_Model_Node(self, state:ClerkState)->dict:
         """
@@ -61,23 +65,28 @@ class ClerkAgent:
             structured_llm_model=self.llm_model.with_structured_output(ClerkClassificationState)
             response=structured_llm_model.invoke([formatted_prompt]+state.messages)
             
-            if current_task.action=="general_information" or current_task.action=="get_balance":
+            if current_task.action=="general_information" or current_task.action=="get_balance" or current_task.action=="ticket_creation":
                 state.final_response.append(response)
                 return{
                     "messages":state.messages+[AIMessage(content=response.model_dump_json())],
-                    "final_response":state.final_response
+                    "final_response":state.final_response,
+                    "pending_tasks":state.pending_tasks
                 }
+
         except Exception as e:
             print(f"Exception in Clerk Inner Model Node: {e}")
             return {
                 "messages":state.messages,
-                "final_response":state.final_response
+                "final_response":state.final_response,
+                "pending_tasks":state.pending_tasks
             }
     #Clerk Tool Execution Node
     def Clerk_Tool_Execution_Node(self, state:ClerkState)->dict:
         """
         Tool Execution Node for Clerk Agent to execute tools based on the action type.
         """
+        if not state.final_response:
+            return {}
         tool_execution:ClerkClassificationState = state.final_response[-1]
         if tool_execution.action=="get_balance":
             already_executed=any(
@@ -108,10 +117,85 @@ class ClerkAgent:
                                 "data":None,
                                 "error":str(e),
                             })
+        elif tool_execution.action=="ticket_creation":
+            counter=3
+            while counter>0:
+                try:
+                    #Checking if LLM has extracted the necessary details for ticket creation or not
+                    if not all([tool_execution.details.get("ticket_type"), tool_execution.details.get("subject"), tool_execution.details.get("description")]):
+                        state.hitl_state.append(tool_execution)
+                        return {
+                            "hitl_state":state.hitl_state,
+                            "messages":state.messages+[AIMessage(content="Insufficient details for ticket creation. Need HITL intervention.")],
+                        }
+                    elif tool_execution.details.get("ticket_type") in ["complaint","help","leave"] and tool_execution.details.get("leave_days") is None:
+                        state.hitl_state.append(tool_execution)
+                        return{
+                            "hitl_state":state.hitl_state,
+                            "messages":state.messages+[AIMessage(content="Insufficient details for leave ticket creation. Need HITL intervention.")],
+                        }
+                    elif tool_execution.details.get("ticket_type")=="complaint" or tool_execution.details.get("ticket_type")=="leave":
+                        state.hitl_state.append(tool_execution)
+                        return{
+                            "hitl_state":state.hitl_state,
+                            "messages":state.messages+[AIMessage(content="Need Confirmation from user for creating a complaint or leave ticket. Need HITL intervention.")],
+                        }
+                    
+                    #proceeding with ticket creation if all necessary details are present
+                    ticket_creation_date=TicketCreation(
+                        ticket_type=tool_execution.details.get("ticket_type"),
+                        subject=tool_execution.details.get("subject"),
+                        description=tool_execution.details.get("description"),
+                        status="in_progress",
+                        leave_days=tool_execution.details.get("leave_days")
+                    )
+                    ticket_creation_tool=make_ticket_creation_tool(self.ticket_creation_port,ticket_creation_date,state.user_query.user_id)
+                    response:bool=ticket_creation_tool()
+                    state.tool_results.append({
+                        "action":"ticket_creation",
+                        "success":response,
+                        "data":tool_execution.details if response else None,
+                        "error":None if response else "Ticket creation failed due to unknown error.",
+                    })
+                    break
+                except Exception as e:
+                    print(f"Error validation and creating Ticket for the user", str(e))
+                    counter-=1
+                    if counter==0:
+                        print("Failed to validate and create ticket after multiple attempts.")
+                        state.tool_results.append({
+                            "action":"ticket_creation",
+                            "success":False,
+                            "data":None,
+                            "error":str(e),
+                        })
         return {
             "tool_results":state.tool_results,
         }
 
+    #Clerk HITL Intervention Node
+    def hitl_intervention_node(self,state:ClerkState)->END:
+        """
+        HITL Intervention Node for Clerk Agent to handle tasks that require human intervention based on the hitl_state in the Clerk State.
+        """
+        #publishing event to Redis channel for HITL intervention
+        user_id=state.user_query.user_id
+        conversation_id=state.user_query.conversation_id
+
+        hitl_data=state.hitl_state.popleft()
+        publish_event(
+            channel="HITL_Intervention_Channel",
+            event_data={
+                "user_id":user_id,
+                "conversation_id":conversation_id,
+                "agent":"Clerk",
+                "hitl_task":hitl_data.model_dump()
+            }
+        )
+
+        #saving the updated Clerk State with HITL state to Redis
+        save_agent_state_for_hitl_intervention(state)
+        return END
     #Final Response Node for Clerk Agent
     def Clerk_Final_Response_Node(self,state:ClerkState)->END:
         """
@@ -128,10 +212,10 @@ class ClerkAgent:
                 user_id=state.user_query.user_id
                 conversation_id=state.user_query.conversation_id
                 #updating the final response in Redis after successful execution
-                agent_state=get_agent_state(user_id,conversation_id)
+                agent_state=get_agent_state_for_final_response(user_id,conversation_id)
                 if agent_state:
-                    agent_state.state["final_response"]=response
-                    save_agent_state(agent_state)
+                    agent_state["final_response"]=response
+                    save_agent_state_for_final_response(agent_state)
                 return END
             except Exception as e:
                 print(f"Exception in Clerk Final Response Node: {e}. Retrying...")
@@ -147,7 +231,7 @@ class ClerkAgent:
         clerk_graph.add_node("clerk_inner_model_node", self.Clerk_Inner_Model_Node)
         clerk_graph.add_node("clerk_tool_execution_node", self.Clerk_Tool_Execution_Node)
         clerk_graph.add_node("final_response_node", self.Clerk_Final_Response_Node)
-
+        clerk_graph.add_node("hitl_intervention_node", self.hitl_intervention_node)
         #defining edges between nodes
         clerk_graph.add_edge(START, "clerk_outer_model_node")
         clerk_graph.add_edge("clerk_outer_model_node", "clerk_decision_node")
@@ -156,12 +240,14 @@ class ClerkAgent:
             lambda state:state.next_step,
             {
                 "inner":"clerk_inner_model_node",
-                "final":"final_response_node"
+                "final":"final_response_node",
+                "hitl":"hitl_intervention_node"
             }
         )
         clerk_graph.add_edge("clerk_inner_model_node", "clerk_tool_execution_node")
         clerk_graph.add_edge("clerk_tool_execution_node", "clerk_decision_node")
         clerk_graph.add_edge("final_response_node", END)
+        clerk_graph.add_edge("hitl_intervention_node", END)
         
         #Compiling the Graph
         clerk_agent=clerk_graph.compile()
