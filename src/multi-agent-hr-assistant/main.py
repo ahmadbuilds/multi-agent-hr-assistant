@@ -3,8 +3,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from domain.entities import UserQuery,TicketCreation
 from infrastructure.supabase.supabase_client import get_user_from_token,fetch_user_leave_balance,create_ticket_in_db
 from infrastructure.redis.redis_client import publish_event
+import asyncio
+from infrastructure.socket.socket_manager import socket_app, broadcast_hitl_event
+from infrastructure.redis.redis_config import get_redis_client
+import json
 
 app = FastAPI()
+
+# Mount Socket.IO app
+app.mount("/socket.io", socket_app)
 
 app.add_middleware(
     CORSMiddleware,
@@ -13,6 +20,35 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.on_event("startup")
+async def startup_event():
+    asyncio.create_task(redis_listener())
+
+async def redis_listener():
+    redis = get_redis_client()
+    pubsub = redis.pubsub()
+    
+    await pubsub.psubscribe("HITL_Intervention_Channel:*:*:Clerk")
+    
+    print("Started Redis listener for HITL events...")
+    
+    async for message in pubsub.listen():
+        if message["type"] == "pmessage":
+            try:
+                channel = message["channel"]
+                data = json.loads(message["data"])
+                
+                # Extract user_id and conversation_id from channel
+                parts = channel.split(":")
+                if len(parts) >= 4:
+                    user_id = parts[1]
+                    conversation_id = parts[2]
+                    
+                    # Broadcast via Socket.IO
+                    await broadcast_hitl_event(user_id, conversation_id, data)
+            except Exception as e:
+                print(f"Error processing Redis message: {e}")
 
 @app.post("/process_query")
 async def process_query(user_query:UserQuery)->dict:
