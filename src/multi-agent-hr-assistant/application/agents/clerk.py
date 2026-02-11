@@ -130,7 +130,7 @@ class ClerkAgent:
                             "hitl_state":state.hitl_state,
                             "messages":state.messages+[AIMessage(content="Insufficient details for ticket creation. Need HITL intervention.")],
                         }
-                    elif tool_execution.details.get("ticket_type") in ["complaint","help","leave"] and tool_execution.details.get("leave_days") is None:
+                    elif tool_execution.details.get("ticket_type")=="leave" and tool_execution.details.get("leave_days") is None:
                         state.hitl_state.append(tool_execution)
                         return{
                             "hitl_state":state.hitl_state,
