@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Header } from "@/components/header"
+import { HITLRequestModal } from "@/components/hitl-request-modal"
 
 interface Message {
   id: number | string
@@ -29,6 +30,7 @@ export function ChatArea({ chatId, initialMessages = [] }: ChatAreaProps) {
   const [input, setInput] = useState("")
   const [loading, setLoading] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -37,6 +39,9 @@ export function ChatArea({ chatId, initialMessages = [] }: ChatAreaProps) {
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
+      if (data.user) {
+          setCurrentUserId(data.user.id)
+      }
       if (data.user?.email === 'crisitiano678@gmail.com') {
         setIsAdmin(true)
       }
@@ -116,6 +121,9 @@ export function ChatArea({ chatId, initialMessages = [] }: ChatAreaProps) {
         }
 
         // 3. AI Response (Placeholder)
+        // Wait for real backend integration or use polling/sockets for real AI responses
+        // preventing fake response creation if using real backend
+        /*
         setTimeout(() => {
             const aiMsg: Message = { 
                 id: Date.now() + 2, 
@@ -128,6 +136,7 @@ export function ChatArea({ chatId, initialMessages = [] }: ChatAreaProps) {
                 sendMessage(activeChatId, "This is a simulated AI response.", 'ai')
             }
         }, 1000)
+        */
         
     } catch (error) {
         console.error(error)
@@ -141,6 +150,11 @@ export function ChatArea({ chatId, initialMessages = [] }: ChatAreaProps) {
     <div className="flex flex-col h-full max-h-screen">
       <Header />
       
+      {/* HITL Request Modal */}
+      {currentUserId && chatId && (
+          <HITLRequestModal userId={currentUserId} conversationId={chatId} />
+      )}
+
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-thin scrollbar-thumb-muted/10 scrollbar-track-transparent">
         {messages.length === 0 && (
@@ -222,6 +236,7 @@ export function ChatArea({ chatId, initialMessages = [] }: ChatAreaProps) {
                   <span className="text-sm text-muted-foreground truncate max-w-[150px]">{selectedFile.name}</span>
                   <button 
                     type="button"
+                    title="Remove Attachment"
                     onClick={() => setSelectedFile(null)}
                     className="ml-2 hover:bg-white/10 rounded-full p-1 transition-colors"
                   >
@@ -236,6 +251,7 @@ export function ChatArea({ chatId, initialMessages = [] }: ChatAreaProps) {
                 <input
                     type="file"
                     id="file-upload"
+                    title="Handle file selection"
                     className="hidden"
                     onChange={handleFileSelect}
                 />
