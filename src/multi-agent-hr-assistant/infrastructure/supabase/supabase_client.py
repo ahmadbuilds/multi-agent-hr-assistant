@@ -31,3 +31,12 @@ def fetch_user_leave_balance(user_id:str)->int:
     except Exception as e:
         print("Error retrieving leave balance:", str(e))
         return 0
+    
+#function to create a ticket in the database
+def create_ticket_in_db(ticket_data:dict)->bool:
+    try:
+        response=supabase.table("tickets").insert(ticket_data).execute()
+        return len(response.data)>0
+    except Exception as e:
+        print("Error creating ticket in database:", str(e))
+        return False
