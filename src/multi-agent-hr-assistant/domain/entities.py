@@ -8,6 +8,7 @@ class UserQuery(BaseModel):
     isAdmin:Optional[bool]=Field(description="boolean flag to indicate the Manipulation of Policy Documents", default=None)
     conversation_id:str=Field(description="unique identifier for the conversation, used for maintaining context across interactions")
     user_id:Optional[str]=Field(description="unique identifier for the user, used for maintaining context and state across interactions",default=None)
+    auth_token:str=Field(description="authentication token for the user, used to verify identity and fetch user details")
 
 #pydantic model for Supervisor Structured Output
 class Supervisor_structured_output(BaseModel):
