@@ -10,6 +10,8 @@ from collections import deque
 from langchain_core.messages import AIMessage
 from IPython.display import Image,display
 from infrastructure.redis.redis_client import save_agent_state_for_final_response,get_agent_state_for_final_response,publish_event,save_agent_state_for_hitl_intervention
+from infrastructure.redis.redis_config import get_redis_client
+
 #Clerk Agent Class Implementation
 class ClerkAgent:
     def __init__(self, llm_model:BaseChatModel, leave_balance_port:LeaveBalancePort,ticket_creation_port:TicketCreationPort):
@@ -97,7 +99,7 @@ class ClerkAgent:
                 counter=3
                 while counter>0:
                     try:
-                        leave_balance_tool=make_get_leave_balance_tool(self.leave_balance_port)
+                        leave_balance_tool=make_get_leave_balance_tool(self.leave_balance_port,state.user_query.auth_token)
                         leave_balance:int=leave_balance_tool()
                         state.tool_results.append({
                             "action":"get_balance",
@@ -174,7 +176,7 @@ class ClerkAgent:
         }
 
     #Clerk HITL Intervention Node
-    def hitl_intervention_node(self,state:ClerkState)->END:
+    def hitl_intervention_node(self,state:ClerkState)->dict:
         """
         HITL Intervention Node for Clerk Agent to handle tasks that require human intervention based on the hitl_state in the Clerk State.
         """
@@ -184,7 +186,7 @@ class ClerkAgent:
 
         hitl_data=state.hitl_state.popleft()
         publish_event(
-            channel="HITL_Intervention_Channel",
+            channel=f"HITL_Intervention_Channel:{user_id}:{conversation_id}:Clerk",
             event_data={
                 "user_id":user_id,
                 "conversation_id":conversation_id,
@@ -195,7 +197,24 @@ class ClerkAgent:
 
         #saving the updated Clerk State with HITL state to Redis
         save_agent_state_for_hitl_intervention(state)
-        return END
+        
+        redis=get_redis_client()
+
+        pubsub=redis.pubsub()
+
+        pubsub.subscribe(f"HITL_Response_Channel:{user_id}:{conversation_id}:Clerk")
+
+        for message in pubsub.listen():
+            if message["type"]=="message":
+                response_payload=message["data"]
+
+                pubsub.unsubscribe(f"HITL_Response_Channel:{user_id}:{conversation_id}:Clerk")
+
+                return {
+                    
+                }
+    
+
     #Final Response Node for Clerk Agent
     def Clerk_Final_Response_Node(self,state:ClerkState)->END:
         """
@@ -247,7 +266,7 @@ class ClerkAgent:
         clerk_graph.add_edge("clerk_inner_model_node", "clerk_tool_execution_node")
         clerk_graph.add_edge("clerk_tool_execution_node", "clerk_decision_node")
         clerk_graph.add_edge("final_response_node", END)
-        clerk_graph.add_edge("hitl_intervention_node", END)
+        clerk_graph.add_edge("hitl_intervention_node", "clerk_decision_node")
         
         #Compiling the Graph
         clerk_agent=clerk_graph.compile()
