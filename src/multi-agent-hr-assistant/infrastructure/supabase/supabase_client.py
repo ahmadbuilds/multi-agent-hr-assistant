@@ -20,3 +20,12 @@ def get_chat_history(conversation_id:str)->list:
     except Exception as e:
         print("Error retrieving chat history:", str(e))
         return []
+    
+#function to get the leave balance for a user using user_id
+def get_leave_balance(user_id:str)->int:
+    try:
+        response=supabase.table("leave_balances").select("balance").eq("user_id", user_id).single().execute()
+        return response.data.get("balance", 0)
+    except Exception as e:
+        print("Error retrieving leave balance:", str(e))
+        return 0
