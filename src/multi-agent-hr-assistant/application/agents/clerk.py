@@ -151,7 +151,7 @@ class ClerkAgent:
                         status="in_progress",
                         leave_days=tool_execution.details.get("leave_days")
                     )
-                    ticket_creation_tool=make_ticket_creation_tool(self.ticket_creation_port,ticket_creation_date,state.user_query.user_id)
+                    ticket_creation_tool=make_ticket_creation_tool(self.ticket_creation_port,ticket_creation_date,state.user_query.auth_token)
                     response:bool=ticket_creation_tool()
                     state.tool_results.append({
                         "action":"ticket_creation",
