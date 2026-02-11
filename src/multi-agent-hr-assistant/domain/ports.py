@@ -6,11 +6,11 @@ class LeaveBalancePort(ABC):
 
     #abstract method to get leave balance
     @abstractmethod
-    def get_leave_balance(self, user_id: str)->int:
+    def get_leave_balance(self, token:str)->int:
         """
         Method to get leave balance for the current logged in user
         Args:
-            user_id (str): ID of the user for whom to fetch the leave balance
+            token (str): Authentication token of the user for whom to fetch the leave balance
         Returns:
             int: leave balance in days
         """
