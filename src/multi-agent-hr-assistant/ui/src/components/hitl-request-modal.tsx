@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { useSocket } from "@/components/socket-provider" // Adjust path as needed
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
-import { HITLEventPayload, HITLTaskData, SocketMessagePayload } from "@/types/hitl"
+import { HITLEventPayload, TicketCreationDetails, TicketCreationClassification, SocketMessagePayload } from "@/types/hitl"
 
 interface HITLRequestModalProps {
   userId: string
@@ -19,8 +19,8 @@ interface HITLRequestModalProps {
 export function HITLRequestModal({ userId, conversationId }: HITLRequestModalProps) {
   const { socket } = useSocket()
   const [isOpen, setIsOpen] = useState(false)
-  const [taskData, setTaskData] = useState<HITLTaskData | null>(null)
-  const [formData, setFormData] = useState<HITLTaskData>({})
+  const [taskData, setTaskData] = useState<TicketCreationDetails | null>(null)
+  const [formData, setFormData] = useState<TicketCreationDetails>({} as TicketCreationDetails)
   const [loading, setLoading] = useState(false)
   const [showConfirmation, setShowConfirmation] = useState(false)
 
@@ -33,10 +33,13 @@ export function HITLRequestModal({ userId, conversationId }: HITLRequestModalPro
     const handleHITLEvent = (data: HITLEventPayload | undefined) => {
         console.log("HITL Event Received:", data)
       if (data && data.hitl_task) {
-        setTaskData(data.hitl_task)
-        setFormData(data.hitl_task) // Initialize form with received data
-        setIsOpen(true)
-        setShowConfirmation(false) // Reset confirmation state
+        if (data.hitl_task.action === "ticket_creation") {
+            const details = (data.hitl_task as TicketCreationClassification).details;
+            setTaskData(details)
+            setFormData(details) // Initialize form with received data
+            setIsOpen(true)
+            setShowConfirmation(false) // Reset confirmation state
+        }
       }
     }
 
@@ -58,7 +61,7 @@ export function HITLRequestModal({ userId, conversationId }: HITLRequestModalPro
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
-    setFormData((prev) => ({
+    setFormData((prev: TicketCreationDetails) => ({
       ...prev,
       [name]: value,
     }))
@@ -78,6 +81,8 @@ export function HITLRequestModal({ userId, conversationId }: HITLRequestModalPro
         },
         body: JSON.stringify({
           ...formData,
+          accepted: showConfirmation ? true : undefined,
+          status: "in_progress",
           conversation_id: conversationId,
           user_id: userId
         }),
