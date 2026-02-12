@@ -22,9 +22,10 @@ class TicketCreation(BaseModel):
     description:str=Field(description="detailed description of the ticket")
     status:Literal["in_progress"]=Field(description="current status of the ticket",default="in_progress")
     leave_days:Optional[int]=Field(description="number of leave days requested, applicable only for leave tickets",default=None)
+    accepted:Optional[bool]=Field(description="flag to indicate if the ticket has been accepted by the user in case of leave request and file complaint",default=None)
 
 #pydantic models for Clerk Classification
-class TickerCreationClassification(BaseModel):
+class TicketCreationClassification(BaseModel):
     action:Literal["ticket_creation"]=Field(description="action type for ticket creation")
     details:TicketCreation=Field(description="details of the ticket to be created")
 
@@ -40,7 +41,7 @@ class GeneralInformationClassification(BaseModel):
     details:GeneralInformationResponse=Field(description="details containing the specific informational response relevant to the user's query")
 
 ClerkClassificationState:TypeAlias=Union[
-    TickerCreationClassification,
+    TicketCreationClassification,
     GetBalanceClassification,
     GeneralInformationClassification
 ]
