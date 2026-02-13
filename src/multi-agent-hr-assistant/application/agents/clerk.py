@@ -11,7 +11,7 @@ from langchain_core.messages import AIMessage
 from IPython.display import Image,display
 from infrastructure.redis.redis_client import save_agent_state_for_final_response,get_agent_state_for_final_response,publish_event,save_agent_state_for_hitl_intervention
 from infrastructure.redis.redis_config import get_redis_client
-
+import json
 #Clerk Agent Class Implementation
 class ClerkAgent:
     def __init__(self, llm_model:BaseChatModel, leave_balance_port:LeaveBalancePort,ticket_creation_port:TicketCreationPort):
@@ -149,7 +149,8 @@ class ClerkAgent:
                         subject=tool_execution.details.get("subject"),
                         description=tool_execution.details.get("description"),
                         status="in_progress",
-                        leave_days=tool_execution.details.get("leave_days")
+                        leave_days=tool_execution.details.get("leave_days"),
+                        accepted=tool_execution.details.get("accepted")
                     )
                     ticket_creation_tool=make_ticket_creation_tool(self.ticket_creation_port,ticket_creation_date,state.user_query.auth_token)
                     response:bool=ticket_creation_tool()
@@ -206,12 +207,16 @@ class ClerkAgent:
 
         for message in pubsub.listen():
             if message["type"]=="message":
-                response_payload=message["data"]
+                response_payload=json.loads(message["data"])
 
                 pubsub.unsubscribe(f"HITL_Response_Channel:{user_id}:{conversation_id}:Clerk")
 
-                return {
-                    
+                result:ClerkClassificationState=state.final_response.popleft()
+                result.details=response_payload.get("details",result.details)
+                state.final_response.appendleft(result)
+                return{
+                    "final_response":state.final_response,
+                    "messages":state.messages+[AIMessage(content="Received HITL response, resuming task execution.")],
                 }
     
 
@@ -266,7 +271,7 @@ class ClerkAgent:
         clerk_graph.add_edge("clerk_inner_model_node", "clerk_tool_execution_node")
         clerk_graph.add_edge("clerk_tool_execution_node", "clerk_decision_node")
         clerk_graph.add_edge("final_response_node", END)
-        clerk_graph.add_edge("hitl_intervention_node", "clerk_decision_node")
+        clerk_graph.add_edge("hitl_intervention_node", "clerk_tool_execution_node")
         
         #Compiling the Graph
         clerk_agent=clerk_graph.compile()
