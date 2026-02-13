@@ -7,7 +7,7 @@ def make_supervisor_execute_clerk_graph_tool(executor:ClerkGraphExecutionPort):
         name="execute_clerk_graph",
         description="Use this tool to execute the Clerk Agent State Graph for handling HR related queries."
     )
-    def execute_clerk_graph()->None:
+    def execute_clerk_graph()->bool:
         """
         Tool function to execute the Clerk Agent State Graph
         Args:
