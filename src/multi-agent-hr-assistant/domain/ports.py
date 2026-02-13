@@ -31,24 +31,24 @@ class TicketCreationPort(ABC):
 
 class ClerkGraphExecutionPort(ABC):
     @abstractmethod
-    def execute_clerk_agent_graph(self,state:ClerkState)->None:
+    def execute_clerk_agent_graph(self,state:ClerkState)->bool:
         """
         Method to execute the Clerk Agent State Graph
         Args:
             state (ClerkState): Current state of the Clerk Agent
         Returns:
-            None
+            bool: True if execution is successful, False otherwise
         """
         pass
 
 class LibrarianGraphExecutionPort(ABC):
     @abstractmethod
-    def execute_librarian_agent_graph(self,state:LibrarianState)->None:
+    def execute_librarian_agent_graph(self,state:LibrarianState)->bool:
         """
         Method to execute the Librarian Agent State Graph
         Args:
             state (LibrarianState): Current state of the Librarian Agent
         Returns:
-            None
+            bool: True if execution is successful, False otherwise
         """
         pass
