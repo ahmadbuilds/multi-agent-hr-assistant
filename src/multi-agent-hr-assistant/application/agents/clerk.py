@@ -246,8 +246,8 @@ class ClerkAgent:
                 counter-=1
     
     #Function to create the Clerk Agent State Graph
-    def create_clerk_agent_graph(self,clerk_state:ClerkState)->StateGraph:
-        clerk_graph=StateGraph(clerk_state)
+    def create_clerk_agent_graph(self)->StateGraph:
+        clerk_graph=StateGraph(ClerkState)
         
         #adding nodes to the clerk agent graph
         clerk_graph.add_node("clerk_outer_model_node", self.Clerk_Outer_Model_Node)
