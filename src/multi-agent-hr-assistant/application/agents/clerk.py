@@ -136,7 +136,7 @@ class ClerkAgent:
                             "hitl_state":state.hitl_state,
                             "messages":state.messages+[AIMessage(content="Insufficient details for leave ticket creation. Need HITL intervention.")],
                         }
-                    elif tool_execution.details.get("ticket_type")=="complaint" or tool_execution.details.get("ticket_type")=="leave":
+                    elif (tool_execution.details.get("ticket_type") in ["leave","complaint"]) and tool_execution.details.get("accepted") is None:
                         state.hitl_state.append(tool_execution)
                         return{
                             "hitl_state":state.hitl_state,
@@ -152,14 +152,22 @@ class ClerkAgent:
                         leave_days=tool_execution.details.get("leave_days"),
                         accepted=tool_execution.details.get("accepted")
                     )
-                    ticket_creation_tool=make_ticket_creation_tool(self.ticket_creation_port,ticket_creation_date,state.user_query.auth_token)
-                    response:bool=ticket_creation_tool()
-                    state.tool_results.append({
-                        "action":"ticket_creation",
-                        "success":response,
-                        "data":tool_execution.details if response else None,
-                        "error":None if response else "Ticket creation failed due to unknown error.",
-                    })
+                    if ticket_creation_date.accepted is False:
+                        state.tool_results.append({
+                            "action":"ticket_creation",
+                            "success":False,
+                            "data":None,
+                            "error":"User rejected the ticket creation.",
+                        })
+                    else:        
+                        ticket_creation_tool=make_ticket_creation_tool(self.ticket_creation_port,ticket_creation_date,state.user_query.auth_token)
+                        response:bool=ticket_creation_tool()
+                        state.tool_results.append({
+                            "action":"ticket_creation",
+                            "success":response,
+                            "data":tool_execution.details if response else None,
+                            "error":None if response else "Ticket creation failed due to unknown error.",
+                        })
                     break
                 except Exception as e:
                     print(f"Error validation and creating Ticket for the user", str(e))
