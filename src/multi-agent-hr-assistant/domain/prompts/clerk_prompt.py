@@ -137,7 +137,8 @@ Clerk_Inner_Model_Prompt = ChatPromptTemplate.from_messages([
             "subject": "...",
             "description": "...",
             "status": "in_progress",
-            "leave_days": number | null
+            "leave_days": number | null,
+            "accepted": null
         }
         }
 
