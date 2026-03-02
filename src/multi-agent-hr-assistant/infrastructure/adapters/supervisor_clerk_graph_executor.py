@@ -10,6 +10,10 @@ class SupervisorClerkGraphExecutor(ClerkGraphExecutionPort):
     def __init__(self,state:ClerkState):
         self.clerk_state=state
     
+
+    #function to update the state of clerk
+    def update_clerk_state(self,state:ClerkState):
+        self.clerk_state=state
     #Method to execute the Clerk Agent State Graph
     def execute_clerk_agent_graph(self)->bool:
         try:
