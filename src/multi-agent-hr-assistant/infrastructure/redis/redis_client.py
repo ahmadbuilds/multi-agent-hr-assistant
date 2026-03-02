@@ -8,7 +8,8 @@ def save_agent_state_for_final_response(agent_state:AgentState):
     try:
         redis.set(
             f"user_id:{agent_state.user_id}:conversation_id:{agent_state.key}:state",
-            json.dumps(agent_state.state)
+            json.dumps(agent_state.state),
+            ex=600
         )
     except Exception as e:
         print("Error saving agent state to Redis:", str(e))
@@ -29,7 +30,8 @@ def save_agent_state_for_hitl_intervention(agent_state:AgentState):
     try:
         redis.set(
             f"user_id:{agent_state.user_id}:conversation_id:{agent_state.key}:hitl_state",
-            json.dumps(agent_state.state)
+            json.dumps(agent_state.state),
+            ex=600
         )
     except Exception as e:
         print("Error saving HITL agent state to Redis:", str(e))
