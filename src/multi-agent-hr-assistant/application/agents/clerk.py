@@ -28,7 +28,7 @@ class ClerkAgent:
         try:
             formatted_prompt=Clerk_Classification_prompt.format_messages(query=state.user_query.query)
             structured_llm_model=self.llm_model.with_structured_output(ClerkMultipleTasksOutput)
-            response=structured_llm_model.invoke([formatted_prompt]+state.messages)
+            response=structured_llm_model.invoke(list(state.messages)+formatted_prompt)
             return {
                 "messages":state.messages+[AIMessage(content=response.model_dump_json())],
                 "pending_tasks":deque(response.tasks)
@@ -59,20 +59,22 @@ class ClerkAgent:
         Inner Model Node for Clerk Agent to handle individual tasks based on the action type.
         """
         try:
-            current_task=state.pending_tasks.popleft()
+            pending=deque(state.pending_tasks)
+            current_task=pending.popleft()
             formatted_prompt=Clerk_Inner_Model_Prompt.format_messages(
-                    current_task=current_task,
+                    current_task=current_task.model_dump(),
                     user_query=state.user_query.query
                 )
             structured_llm_model=self.llm_model.with_structured_output(ClerkClassificationState)
-            response=structured_llm_model.invoke([formatted_prompt]+state.messages)
+            response=structured_llm_model.invoke(list(state.messages)+formatted_prompt)
             
             if current_task.action=="general_information" or current_task.action=="get_balance" or current_task.action=="ticket_creation":
-                state.final_response.append(response)
+                final_response=list(state.final_response or [])
+                final_response.append(response.model_dump_json())
                 return{
                     "messages":state.messages+[AIMessage(content=response.model_dump_json())],
-                    "final_response":state.final_response,
-                    "pending_tasks":state.pending_tasks
+                    "final_response":final_response,
+                    "pending_tasks":pending
                 }
 
         except Exception as e:
@@ -240,13 +242,13 @@ class ClerkAgent:
         counter=3
         while counter>0:
             try:
-                response=self.llm_model.invoke([formatted_prompt]+state.messages)
+                response=self.llm_model.invoke(list(state.messages)+formatted_prompt)
                 user_id=state.user_query.user_id
                 conversation_id=state.user_query.conversation_id
                 #updating the final response in Redis after successful execution
                 agent_state=get_agent_state_for_final_response(user_id,conversation_id)
                 if agent_state:
-                    agent_state["final_response"]=response
+                    agent_state["final_response"]=response.content
                     save_agent_state_for_final_response(agent_state)
                 return END
             except Exception as e:
