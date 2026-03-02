@@ -15,7 +15,7 @@ class SupervisorState(BaseModel):
 
     #Current working agent and identified intent
     active_agent: Optional[AgentName] = "Supervisor"
-    identified_intent: Optional[IntentType] = None
+    identified_intent: list[IntentType] = []
 
     #Waiting flag to indicate if the Supervisor is waiting for a response from another agent
     waiting_for_response: bool = False
