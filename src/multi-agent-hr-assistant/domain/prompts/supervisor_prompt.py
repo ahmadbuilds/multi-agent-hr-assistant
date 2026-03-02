@@ -66,9 +66,6 @@ SupervisorDecompositionPrompt = ChatPromptTemplate.from_messages([
         Casual or conversational messages not related to HR services.
         → Agent: Supervisor
 
-        Unknown:
-        Does not match any supported HR service.
-        → Agent: Supervisor
 
         ────────────────────────────
         DECOMPOSITION RULES
