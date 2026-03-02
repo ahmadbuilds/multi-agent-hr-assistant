@@ -1,3 +1,5 @@
+from typing import Literal
+
 from langgraph.graph import StateGraph,START,END
 from domain.prompts.supervisor_prompt import SupervisorPrompt
 from domain.tools.supervisor_tool import make_supervisor_execute_clerk_graph_tool
@@ -31,6 +33,7 @@ class SupervisorAgent:
             structured_llm_prompt=self.llm_model.with_structured_output(TaskIntent)
             response= structured_llm_prompt.invoke([formatted_prompt]+state.messages)
             state.identified_intent=response
+            state.decision_node_count=len(response) if isinstance(response, list) else 0
             return{
                 "messages":state.messages+[AIMessage(content=response.model_dump_json())],
                 "identified_intent":state.identified_intent
@@ -41,3 +44,15 @@ class SupervisorAgent:
                 "messages":state.messages,
                 "identified_intent":[]
             }
+    
+    #function to decide the next action based on the identified intents and execute the corresponding tools or agent graphs
+    def Supervisor_decision_node(self,state:SupervisorState)->Literal["result_node","supervisor_tool_node"]:
+        """
+        function to decide the next action based on the identified intents and decision node count, and execute the corresponding tools or agent graphs
+        """
+        if state.decision_node_count==0:
+            return "result_node"
+        else:
+            return "supervisor_tool_node"
+        
+    
