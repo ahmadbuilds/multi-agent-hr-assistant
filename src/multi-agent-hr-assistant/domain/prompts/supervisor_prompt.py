@@ -78,7 +78,10 @@ SupervisorDecompositionPrompt = ChatPromptTemplate.from_messages([
         5. If clarification is required, create ONE Clarification task.
         6. If the entire query is General_Chat, create ONE General_Chat task.
         7. If uncertain, prefer Clarification.
-
+        8. If multiple parts of the query belong to the SAME operational task, merge them into a single TaskIntent.
+        9. Do NOT split a single workflow into multiple tasks merely because it appears in separate sentences.
+        10. Only create separate tasks when the intents are operationally independent.
+                  
         ────────────────────────────
         OUTPUT FORMAT
         ────────────────────────────
