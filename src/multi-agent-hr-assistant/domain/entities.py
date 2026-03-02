@@ -63,3 +63,6 @@ class TaskIntent(BaseModel):
     decomposed_query:str=Field(description="decomposed query for the agent to handle this specific intent")
     status:Literal["pending","running","waiting_for_human","completed","error"]=Field(description="current status of the task",default="pending")
     result:Optional[str]=Field(description="result of the task execution, can contain tool execution results or final response from the agent",default=None)
+
+class SupervisorTaskIntent(BaseModel):
+     task:list[TaskIntent]=Field(description="list of identified intents for the Supervisor Agent to handle in structured format")
