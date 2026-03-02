@@ -13,6 +13,7 @@ def make_supervisor_execute_clerk_graph_tool(executor:ClerkGraphExecutionPort):
         Args:
             state (ClerkState): Current state of the Clerk Agent
         Returns:
-            None
+            bool: True if execution is successful, False otherwise
         """
         return executor.execute_clerk_agent_graph()
+    return execute_clerk_graph
