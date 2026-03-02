@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import Optional, Optional,Sequence,Annotated
 from langchain_core.messages import BaseMessage
 from domain.intents import IntentType, AgentName, LibrarianActionType, UserResponseType
-from domain.entities import ClerkClassificationState, UserQuery
+from domain.entities import ClerkClassificationState, TaskIntent, UserQuery
 from langgraph.graph.message import add_messages
 from pydantic import BaseModel
 from collections import deque
@@ -15,7 +15,7 @@ class SupervisorState(BaseModel):
 
     #Current working agent and identified intent
     active_agent: Optional[AgentName] = "Supervisor"
-    identified_intent: list[IntentType] = []
+    identified_intent: list[TaskIntent] = []
 
     #Waiting flag to indicate if the Supervisor is waiting for a response from another agent
     waiting_for_response: bool = False
