@@ -20,6 +20,9 @@ class SupervisorState(BaseModel):
     #Waiting flag to indicate if the Supervisor is waiting for a response from another agent
     waiting_for_response: bool = False
 
+    #count for decision node
+    decision_node_count: int = 0
+
     #final response to be sent to the user
     final_response: Optional[str] = None
     final_summary: Optional[str] = None
