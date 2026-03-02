@@ -55,3 +55,11 @@ class AgentState(BaseModel):
     user_id:str=Field(description="unique identifier for the user associated with this agent state")
     key:str=Field(description="unique key to identify the agent state in Redis")
     state:dict=Field(description="state of the agent to be saved in Redis")
+
+#pydantic model for Supervisor to handle multi-intent queries
+class TaskIntent(BaseModel):
+    agent:AgentName=Field(description="name of the agent responsible for handling this intent")
+    intent:IntentType=Field(description="identified intent for this task")
+    decomposed_query:str=Field(description="decomposed query for the agent to handle this specific intent")
+    status:Literal["pending","running","waiting_for_human","completed","error"]=Field(description="current status of the task",default="pending")
+    result:Optional[str]=Field(description="result of the task execution, can contain tool execution results or final response from the agent",default=None)
