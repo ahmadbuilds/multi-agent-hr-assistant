@@ -80,9 +80,15 @@ class SupervisorAgent:
                         messages=state.messages
                     )
 
+                    #invoking the Clerk Agent Graph Executor Port to execute the Clerk Agent Graph with the updated clerk state
                     self.SupervisorClerkGraphExecutorPort.update_clerk_state(clerk_state)
                     clerk_graph_executor=make_supervisor_execute_clerk_graph_tool(self.SupervisorClerkGraphExecutorPort)
                     clerk_graph_executor(clerk_state)
+
+                    #reading the final response of the clerk agent from Redis after execution
+                    final_clerk_response=get_agent_state_for_final_response(state.user_query.user_id,state.user_query.conversation_id)
+                    intent.status="completed"
+                    intent.result=final_clerk_response
             except Exception as e:
                 print(f"Error in Supervisor_tool_node for intent {state.identified_intent[i].intent}: {e}")
                 state.identified_intent[i].status="failed"
