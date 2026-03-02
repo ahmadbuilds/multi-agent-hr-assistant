@@ -30,13 +30,12 @@ class ClerkAgent:
             structured_llm_model=self.llm_model.with_structured_output(ClerkMultipleTasksOutput)
             response=structured_llm_model.invoke(list(state.messages)+formatted_prompt)
             return {
-                "messages":state.messages+[AIMessage(content=response.model_dump_json())],
+                "messages":[AIMessage(content=response.model_dump_json())],
                 "pending_tasks":deque(response.tasks)
             }
         except Exception as e:
             print(f"Exception in Clerk Outer Model Node: {e}")
             return {
-                "messages":state.messages,
                 "pending_tasks":deque()
             }
     #Decision Node for Clerk Agent
@@ -72,7 +71,7 @@ class ClerkAgent:
                 final_response=list(state.final_response or [])
                 final_response.append(response.model_dump_json())
                 return{
-                    "messages":state.messages+[AIMessage(content=response.model_dump_json())],
+                    "messages":[AIMessage(content=response.model_dump_json())],
                     "final_response":final_response,
                     "pending_tasks":pending
                 }
@@ -80,7 +79,6 @@ class ClerkAgent:
         except Exception as e:
             print(f"Exception in Clerk Inner Model Node: {e}")
             return {
-                "messages":state.messages,
                 "final_response":state.final_response,
                 "pending_tasks":state.pending_tasks
             }
@@ -130,19 +128,19 @@ class ClerkAgent:
                         state.hitl_state.append(tool_execution)
                         return {
                             "hitl_state":state.hitl_state,
-                            "messages":state.messages+[AIMessage(content="Insufficient details for ticket creation. Need HITL intervention.")],
+                            "messages":[AIMessage(content="Insufficient details for ticket creation. Need HITL intervention.")],
                         }
                     elif tool_execution.details.get("ticket_type")=="leave" and tool_execution.details.get("leave_days") is None:
                         state.hitl_state.append(tool_execution)
                         return{
                             "hitl_state":state.hitl_state,
-                            "messages":state.messages+[AIMessage(content="Insufficient details for leave ticket creation. Need HITL intervention.")],
+                            "messages":[AIMessage(content="Insufficient details for leave ticket creation. Need HITL intervention.")],
                         }
                     elif (tool_execution.details.get("ticket_type") in ["leave","complaint"]) and tool_execution.details.get("accepted") is None:
                         state.hitl_state.append(tool_execution)
                         return{
                             "hitl_state":state.hitl_state,
-                            "messages":state.messages+[AIMessage(content="Need Confirmation from user for creating a complaint or leave ticket. Need HITL intervention.")],
+                            "messages":[AIMessage(content="Need Confirmation from user for creating a complaint or leave ticket. Need HITL intervention.")],
                         }
                     
                     #proceeding with ticket creation if all necessary details are present
@@ -226,7 +224,7 @@ class ClerkAgent:
                 state.final_response.appendleft(result)
                 return{
                     "final_response":state.final_response,
-                    "messages":state.messages+[AIMessage(content="Received HITL response, resuming task execution.")],
+                    "messages":[AIMessage(content="Received HITL response, resuming task execution.")],
                 }
     
 
