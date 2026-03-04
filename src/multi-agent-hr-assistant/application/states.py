@@ -17,9 +17,6 @@ class SupervisorState(BaseModel):
     active_agent: Optional[AgentName] = "Supervisor"
     identified_intent: list[TaskIntent] = []
 
-    #Waiting flag to indicate if the Supervisor is waiting for a response from another agent
-    waiting_for_response: bool = False
-
     #final response to be sent to the user
     final_response: Optional[str] = None
     final_summary: Optional[str] = None
