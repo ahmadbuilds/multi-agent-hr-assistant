@@ -1,6 +1,6 @@
 from typing import Literal
 from langgraph.graph import StateGraph,START,END
-from domain.prompts.supervisor_prompt import SupervisorPrompt,SupervisorFinalResponsePrompt
+from domain.prompts.supervisor_prompt import SupervisorDecompositionPrompt,SupervisorFinalResponsePrompt
 from domain.tools.supervisor_tool import make_supervisor_execute_clerk_graph_tool
 from application.states import SupervisorState,ClerkState
 from langchain.chat_models import BaseChatModel
@@ -25,7 +25,7 @@ class SupervisorAgent:
             SupervisorState: Updated state with decomposed tasks
         """
         try:
-            formatted_prompt=SupervisorPrompt.format_messages(
+            formatted_prompt=SupervisorDecompositionPrompt.format_messages(
                 user_query=state.user_query.query,
                 isUploaded=state.user_query.UploadedText,
                 isAdmin=state.user_query.isAdmin
@@ -167,7 +167,7 @@ class SupervisorAgent:
         )
         graph.add_edge("Supervisor_tool_node","Supervisor_decision_node")
         graph.add_edge("Supervisor_result_node",END)
-        return graph
+        return graph.compile()
     
     #function to build the image for the Supervisor Agent Graph
     def build_supervisor_agent_graph_image(self,agent:StateGraph):
