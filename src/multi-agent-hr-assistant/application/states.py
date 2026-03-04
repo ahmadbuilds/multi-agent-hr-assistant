@@ -19,7 +19,9 @@ class SupervisorState(BaseModel):
 
     #final response to be sent to the user
     final_response: Optional[str] = None
-    final_summary: Optional[str] = None
+
+    #Supervisor next steps
+    next_steps:Optional[Literal["result","tool_node"]] = None
 
 #pydantic model for HITL State
 class HITLState(BaseModel):
