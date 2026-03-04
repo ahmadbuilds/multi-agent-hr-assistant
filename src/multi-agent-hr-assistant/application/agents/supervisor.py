@@ -170,7 +170,7 @@ class SupervisorAgent:
         return graph
     
     #function to build the image for the Supervisor Agent Graph
-    def build_supervisor_agent_graph_image(self,agent:StateGraph)->bytes:
+    def build_supervisor_agent_graph_image(self,agent:StateGraph):
         """
         function to build the image for the Supervisor Agent Graph
         args:
