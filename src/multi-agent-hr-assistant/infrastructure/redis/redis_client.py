@@ -60,3 +60,45 @@ def publish_event(channel:str, event_data:dict):
         redis.publish(channel, json.dumps(event_data))
     except Exception as e:
         print("Error publishing event to Redis channel:", str(e))
+
+
+#function to store the document hash in Redis
+def save_document_version_name(updated_name:str)->bool:
+    try:
+        redis.set(f"document_version_name:{updated_name}",updated_name)
+        return True
+    except Exception as e:
+        print("Error saving document version name to Redis:", str(e))
+        return False
+    
+#function to retrieve the document hash from Redis
+def get_document_version_name(document_name:str)->str:
+    try:
+        version_name = redis.get(f"document_version_name:{document_name}")
+        if version_name:
+            return version_name.decode("utf-8")
+        return ""
+    except Exception as e:
+        print("Error retrieving document version name from Redis:", str(e))
+        return ""
+    
+#function to save the document hash in Redis
+def save_document_hash(document_id:str, document_hash:str)->bool:
+    try:
+        #here document id is document version name
+        redis.set(f"document_hash:{document_id}", document_hash)
+        return True
+    except Exception as e:
+        print("Error saving document hash to Redis:", str(e))
+        return False
+
+#function to retrieve the document hash from Redis
+def get_document_hash(document_id:str)->str:
+    try:
+        document_hash = redis.get(f"document_hash:{document_id}")
+        if document_hash:
+            return document_hash.decode("utf-8")
+        return ""
+    except Exception as e:
+        print("Error retrieving document hash from Redis:", str(e))
+        return ""
