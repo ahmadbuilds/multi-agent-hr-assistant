@@ -65,16 +65,16 @@ def publish_event(channel:str, event_data:dict):
 #function to store the document hash in Redis
 def save_document_version_name(updated_name:str)->bool:
     try:
-        redis.set(f"document_version_name:{updated_name}",updated_name)
+        redis.set(f"document_version_name",updated_name)
         return True
     except Exception as e:
         print("Error saving document version name to Redis:", str(e))
         return False
     
 #function to retrieve the document hash from Redis
-def get_document_version_name(document_name:str)->str:
+def get_document_version_name()->str:
     try:
-        version_name = redis.get(f"document_version_name:{document_name}")
+        version_name = redis.get(f"document_version_name")
         if version_name:
             return version_name.decode("utf-8")
         return ""
