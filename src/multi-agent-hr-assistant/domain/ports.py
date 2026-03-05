@@ -52,3 +52,27 @@ class LibrarianGraphExecutionPort(ABC):
             bool: True if execution is successful, False otherwise
         """
         pass
+
+class DocumentStorePort(ABC):
+    @abstractmethod
+    def get_document_hash(self,document_id:str)->str:
+        """
+        Method to get the hash of a document based on its ID
+        Args:
+            document_id (str): Unique identifier of the document
+        Returns:
+            str: Hash of the document
+        """
+        pass
+
+    @abstractmethod
+    def save_document_hash(self,document_id:str,document_hash:str)->bool:
+        """
+        Method to save the hash of a document with its ID
+        Args:
+            document_id (str): Unique identifier of the document
+            document_hash (str): Hash of the document to be saved
+        Returns:
+            bool: True if saving is successful, False otherwise
+        """
+        pass
