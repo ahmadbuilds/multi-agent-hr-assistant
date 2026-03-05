@@ -76,3 +76,16 @@ class DocumentStorePort(ABC):
             bool: True if saving is successful, False otherwise
         """
         pass
+
+class VectorStorePort(ABC):
+    @abstractmethod
+    def upsert_embeddings(self,chunks:list,metadata:list)->bool:
+        """
+        Method to upsert document chunks and their metadata into the vector store
+        Args:
+            chunks (list): List of document chunks to be upserted
+            metadata (list): List of metadata corresponding to each document chunk
+        Returns:
+            bool: True if upsert is successful, False otherwise
+        """
+        pass
