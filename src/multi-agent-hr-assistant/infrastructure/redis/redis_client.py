@@ -76,7 +76,7 @@ def get_document_version()->str:
     try:
         version_name = redis.get(f"document_version_name")
         if version_name:
-            return version_name.decode("utf-8")
+            return version_name
         return ""
     except Exception as e:
         print("Error retrieving document version name from Redis:", str(e))
@@ -97,7 +97,7 @@ def get_document_hash_to_redis(document_id:str)->str:
     try:
         document_hash = redis.get(f"document_hash:{document_id}")
         if document_hash:
-            return document_hash.decode("utf-8")
+            return document_hash
         return ""
     except Exception as e:
         print("Error retrieving document hash from Redis:", str(e))
