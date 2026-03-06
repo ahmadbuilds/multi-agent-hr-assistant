@@ -1,5 +1,5 @@
 from pydantic import BaseModel,Field
-from domain.intents import IntentType,TicketType,TicketStatusType,ClerkActionType,AgentName
+from domain.intents import IntentType, LibrarianActionType,TicketType,TicketStatusType,ClerkActionType,AgentName
 from typing import Optional,Literal, Union,TypeAlias
 #pydantic model to represent user query
 class UserQuery(BaseModel):
@@ -66,3 +66,13 @@ class TaskIntent(BaseModel):
 
 class SupervisorTaskIntent(BaseModel):
      task:list[TaskIntent]=Field(description="list of identified intents for the Supervisor Agent to handle in structured format")
+
+
+#pydantic model for librarian agent for getting pending tasks
+class LibrarianTask(BaseModel):
+    action:LibrarianActionType=Field(description="action to be performed by the Librarian Agent based on the identified intent and routing decision by the Supervisor Agent")
+    status:Literal["pending","completed","error"]=Field(description="current status of the task assigned to the Librarian Agent",default="pending")
+    result:Optional[str]=Field(description="result of the task execution by the Librarian Agent, can contain details of the document retrieved or confirmation of document upload/update/deletion",default=None)
+
+class LibrarianTaskIntent(BaseModel):
+    task:list[LibrarianTask]=Field(description="list of tasks assigned to the Librarian Agent in structured format based on the identified intent and routing decision by the Supervisor Agent")
