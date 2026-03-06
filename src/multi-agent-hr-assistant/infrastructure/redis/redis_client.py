@@ -63,7 +63,7 @@ def publish_event(channel:str, event_data:dict):
 
 
 #function to store the document hash in Redis
-def save_document_version_name(updated_name:str)->bool:
+def save_document_version(updated_name:str)->bool:
     try:
         redis.set(f"document_version_name",updated_name)
         return True
@@ -72,7 +72,7 @@ def save_document_version_name(updated_name:str)->bool:
         return False
     
 #function to retrieve the document hash from Redis
-def get_document_version_name()->str:
+def get_document_version()->str:
     try:
         version_name = redis.get(f"document_version_name")
         if version_name:
@@ -83,7 +83,7 @@ def get_document_version_name()->str:
         return ""
     
 #function to save the document hash in Redis
-def save_document_hash(document_id:str, document_hash:str)->bool:
+def save_document_hash_to_redis(document_id:str, document_hash:str)->bool:
     try:
         #here document id is document version name
         redis.set(f"document_hash:{document_id}", document_hash)
@@ -93,7 +93,7 @@ def save_document_hash(document_id:str, document_hash:str)->bool:
         return False
 
 #function to retrieve the document hash from Redis
-def get_document_hash(document_id:str)->str:
+def get_document_hash_to_redis(document_id:str)->str:
     try:
         document_hash = redis.get(f"document_hash:{document_id}")
         if document_hash:
@@ -102,3 +102,12 @@ def get_document_hash(document_id:str)->str:
     except Exception as e:
         print("Error retrieving document hash from Redis:", str(e))
         return ""
+
+#function to delete the document hash from Redis
+def delete_document_hash_to_redis(document_id:str)->bool:
+    try:
+        redis.delete(f"document_hash:{document_id}")
+        return True
+    except Exception as e:
+        print("Error deleting document hash from Redis:", str(e))
+        return False
