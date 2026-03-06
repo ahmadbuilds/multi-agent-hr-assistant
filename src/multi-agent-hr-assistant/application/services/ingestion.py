@@ -125,95 +125,70 @@ class IngestionService:
             bool: True if the update is successful, False otherwise.
         """
         try:
-            #splitting the new document into chunks and generating the new document hash
-            new_doc_hash=self.hash_function(document_content)
-            new_chunks=self.split_text(document_content)
+            #1. Process the new document: split into chunks, generate hashes, and prepare metadata
+            new_doc_hash = self.hash_function(document_content)
+            new_chunks = self.split_text(document_content)
+            
+            # use the chunk hash as the ID for upserting into the vector store
+            new_metadatas = []
+            new_ids = []
+            new_chunk_hashes = set()
 
-            #generate metadata for each new chunk
-            new_metadatas=[]
-            new_ids=[]
-            for i in range(len(new_chunks)):
-                chunk_hash=self.hash_function(new_chunks[i])
-                new_ids.append(chunk_hash)
+            for chunk in new_chunks:
+                c_hash = self.hash_function(chunk)
+                new_ids.append(c_hash)
+                new_chunk_hashes.add(c_hash)
                 new_metadatas.append({
-                    "policy_name":"HR Policy",
-                    "uploaded_by":"admin",
-                    "chunk_hash":chunk_hash,
-                    "document_hash":new_doc_hash,
-                    "upload_date":datetime.now().isoformat(),
+                    "policy_name": "HR Policy",
+                    "uploaded_by": "admin",
+                    "chunk_hash": c_hash,
+                    "document_hash": new_doc_hash,
+                    "upload_date": datetime.now().isoformat(),
                 })
 
-            #getting the old document version name and hash from Redis
-            document_id=self.redis_store.get_document_version_name()
-            if not document_id or document_id=="":
-                print("No existing document version found in Redis. Cannot update non-existing document.")
+            # Get existing state from Redis
+            document_id = self.redis_store.get_document_version_name()
+            if not document_id:
+                print("No existing document version found.")
                 return False
             
-            old_doc_hash=self.redis_store.get_document_hash(document_id)
-            if not old_doc_hash or old_doc_hash=="":
-                print("No existing document hash found in Redis. Cannot update non-existing document.")
-                return False
+            # Get the old document hash from Redis
+            old_doc_hash = self.redis_store.get_document_hash(document_id)
             
-            #getting the chunk hashes of the old document from the vector store
-            new_chunk_hashes=set([metadata["chunk_hash"] for metadata in new_metadatas])
-            existing_chunk_hashes=set(self.vector_store.get_existing_chunk_hashes(old_doc_hash))
+            #get existing chunk hashes from vector store for the old document hash
+            # and determine which chunks need to be deleted (those that are in the old version but not in the new version)
+            existing_chunk_hashes = set(self.vector_store.get_existing_chunk_hashes(old_doc_hash))
+            hashes_to_delete = existing_chunk_hashes - new_chunk_hashes
 
+            #add/update new chunks in the vector store
+            if not self.vector_store.upsert_embeddings(new_chunks, new_metadatas, new_ids):
+                print("Error syncing chunks to vector store.")
+                return False
 
-            #Chunks to add are the ones which are in new document but not in existing document
-            hashes_to_add=new_chunk_hashes-existing_chunk_hashes
-            for i in range(len(new_metadatas)):
-                if new_metadatas[i]["chunk_hash"] in hashes_to_add:
-                    if not self.vector_store.upsert_embeddings([new_chunks[i]],[new_metadatas[i]],[new_ids[i]]):
-                        print("Error upserting new chunk into vector store.")
-                        return False
-                    
-            #Chunks to delete are the ones which are in existing document but not in new document
-            hashes_to_delete=existing_chunk_hashes-new_chunk_hashes
-            
-            #first remove the previous document hash from Redis to avoid any conflict during deletion of old chunks
-            if not self.redis_store.delete_document_hash(document_id):
-                print("Error deleting old document hash from Redis.")
-                return False
-            
-            #saving the new document hash into Redis and also updating the document id
-            #updating only the same number in the string of the document version to maintain the same document id for the updated document
-            match=re.search(r'v(\d+)$', document_id)
-            if match:
-                version_number=int(match.group(1))
-                new_version_number=version_number+1
-                new_document_id=re.sub(r'v\d+$', f'v{new_version_number}', document_id)
-            else:
-                new_document_id=document_id
-             
-            if not self.redis_store.save_document_hash(new_document_id,new_doc_hash):
-                print("Error saving new document hash in Redis.")
-                return False
-            
-            #updating the document hash which are not to be deleted with the new document hash to maintain the same document hash for the unchanged chunks
-            for chunk_hash in existing_chunk_hashes:
-                if chunk_hash not in hashes_to_delete:
-                    #fetch the metadata of the chunk to be updated from the vector store
-                    result = self.vector_store.get(where={"chunk_hash":chunk_hash},include=["metadatas","ids","documents","embeddings"])
-                    if result and "metadatas" in result and result["metadatas"]:
-                        metadata=result["metadatas"][0]
-                        metadata["document_hash"]=new_doc_hash
-                        #upsert the chunk with the updated document hash into the vector store
-                        if not self.vector_store.upsert_embeddings([result["documents"][0]],[metadata],[result["ids"][0]]):
-                            print("Error upserting existing chunk with new document hash into vector store.")
-                            return False
-            
-            #deleting the chunks which are not in the new document from the vector store
+            #Delete chunks that are no longer in the new document
             for chunk_hash in hashes_to_delete:
                 if not self.vector_store.delete_chunks_by_chunk_hash(chunk_hash):
-                    print("Error deleting old chunk from vector store.")
-                    return False
-            
-            #updating the document version name in Redis to the new document id
-            if not self.redis_store.save_document_version_name(new_document_id):
-                print("Error updating document version name in Redis.")
+                    print(f"Warning: Failed to delete old chunk {chunk_hash}")
+
+            # update the document version number and hash in Redis
+            match = re.search(r'v(\d+)$', document_id)
+            if match:
+                new_version_number = int(match.group(1)) + 1
+                new_document_id = re.sub(r'v\d+$', f'v{new_version_number}', document_id)
+            else:
+                new_document_id = f"{document_id}_v2"
+
+            if not self.redis_store.save_document_hash(new_document_id, new_doc_hash):
                 return False
             
+            if not self.redis_store.save_document_version_name(new_document_id):
+                return False
+            
+            # delete old document hash from redis
+            self.redis_store.delete_document_hash(document_id)
+
             return True
+
         except Exception as e:
             print(f"Error handling policy update: {e}")
             return False
