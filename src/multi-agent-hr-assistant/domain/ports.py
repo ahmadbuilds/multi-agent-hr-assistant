@@ -77,6 +77,17 @@ class DocumentStorePort(ABC):
         """
         pass
 
+    @abstractmethod
+    def delete_document_hash(self,document_id:str)->bool:
+        """
+        Method to delete the hash of a document based on its ID
+        Args:
+            document_id (str): Unique identifier of the document
+        Returns:
+            bool: True if deletion is successful, False otherwise
+        """
+        pass
+
 class VectorStorePort(ABC):
     @abstractmethod
     def upsert_embeddings(self,chunks:list,metadata:list)->bool:
