@@ -125,7 +125,7 @@ class IngestionService:
             bool: True if the update is successful, False otherwise.
         """
         try:
-            #1. Process the new document: split into chunks, generate hashes, and prepare metadata
+            #Process the new document: split into chunks, generate hashes, and prepare metadata
             new_doc_hash = self.hash_function(document_content)
             new_chunks = self.split_text(document_content)
             
