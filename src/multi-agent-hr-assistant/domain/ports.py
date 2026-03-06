@@ -90,13 +90,36 @@ class DocumentStorePort(ABC):
 
 class VectorStorePort(ABC):
     @abstractmethod
-    def upsert_embeddings(self,chunks:list,metadata:list)->bool:
+    def upsert_embeddings(self,chunks:list,metadata:list,ids:list)->bool:
         """
         Method to upsert document chunks and their metadata into the vector store
         Args:
             chunks (list): List of document chunks to be upserted
             metadata (list): List of metadata corresponding to each document chunk
+            ids (list): List of IDs for each document chunk
         Returns:
             bool: True if upsert is successful, False otherwise
+        """
+        pass
+
+    @abstractmethod
+    def get_existing_chunk_hashes(self,document_hash:str)->list:
+        """
+        Method to get the existing chunk hashes from the vector store
+        Args:
+            document_hash (str): Hash of the document for which to fetch the chunk hashes
+        Returns:
+            list: List of existing chunk hashes in the vector store for the given document hash
+        """
+        pass
+
+    @abstractmethod
+    def delete_chunks_by_document_hash(self,document_hash:str)->bool:
+        """
+        Method to delete chunks from the vector store based on the document hash
+        Args:
+            document_hash (str): Hash of the document for which to delete the chunks
+        Returns:
+            bool: True if deletion is successful, False otherwise
         """
         pass
