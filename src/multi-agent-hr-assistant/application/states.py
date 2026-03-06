@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import Optional, Optional,Sequence,Annotated
 from langchain_core.messages import BaseMessage
 from domain.intents import IntentType, AgentName, LibrarianActionType, UserResponseType
-from domain.entities import ClerkClassificationState, TaskIntent, UserQuery
+from domain.entities import ClerkClassificationState, LibrarianTask, TaskIntent, UserQuery
 from langgraph.graph.message import add_messages
 from pydantic import BaseModel
 from collections import deque
@@ -22,23 +22,6 @@ class SupervisorState(BaseModel):
 
     #Supervisor next steps
     next_steps:Optional[Literal["result","tool_node"]] = None
-
-#pydantic model for HITL State
-class HITLState(BaseModel):
-    #question for the user to answer
-    question: str=""
-    
-    #options for the user to choose from
-    options: Sequence[UserResponseType]=[]
-
-    #HITL intervention agent
-    agent: AgentName="Supervisor"
-
-    #Counter for attempts made to get user response
-    attempts: int=0
-
-    #flag to indicate if waiting for user response
-    waiting_for_user: bool = False
 
 #pydantic model for clerk State
 class ClerkState(BaseModel):
@@ -68,8 +51,7 @@ class LibrarianState(BaseModel):
     messages: Annotated[Sequence[BaseMessage], add_messages] = []
 
     #Librarian Action to be performed
-    action:LibrarianActionType
+    action:list[LibrarianTask]=[]
 
     #final response to be returned to the Supervisor
-    response: Optional[dict] = None
-    citation_response: Optional[dict] = None
+    response: Optional[str] = None
