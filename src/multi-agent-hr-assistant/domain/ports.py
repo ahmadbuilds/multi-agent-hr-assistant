@@ -53,6 +53,41 @@ class LibrarianGraphExecutionPort(ABC):
         """
         pass
 
+class LibrarianRetrievalPort(ABC):
+    @abstractmethod
+    def retrieve_document(self,query:str)->str:
+        """
+        Method to retrieve relevant document based on the user query
+        Args:
+            query (str): User query for which to retrieve the relevant document
+        Returns:
+            str: Content of the retrieved document
+        """
+        pass
+
+class LibrarianUpdatePort(ABC):
+    @abstractmethod
+    def update_document(self,document_content:str)->bool:
+        """
+        Method to update an existing document based on the provided content
+        Args:
+            document_content (str): Content of the document to be updated
+        Returns:
+            bool: True if document update is successful, False otherwise
+        """
+        pass
+
+class LibrarianInsertionPort(ABC):
+    @abstractmethod
+    def insert_document(self,document_content:str)->bool:
+        """
+        Method to insert a new document based on the provided content
+        Args:
+            document_content (str): Content of the document to be inserted
+        Returns:
+            bool: True if document insertion is successful, False otherwise
+        """
+        pass
 class DocumentStorePort(ABC):
     @abstractmethod
     def get_document_hash(self,document_id:str)->str:
