@@ -53,5 +53,8 @@ class LibrarianState(BaseModel):
     #Librarian Action to be performed
     action:list[LibrarianTask]=[]
 
+    #librarian HITL state
+    hitl_state:list[LibrarianTask]=[]
+
     #final response to be returned to the Supervisor
     response: Optional[str] = None
