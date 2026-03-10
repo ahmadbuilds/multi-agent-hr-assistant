@@ -71,8 +71,10 @@ class SupervisorTaskIntent(BaseModel):
 #pydantic model for librarian agent for getting pending tasks
 class LibrarianTask(BaseModel):
     action:LibrarianActionType=Field(description="action to be performed by the Librarian Agent based on the identified intent and routing decision by the Supervisor Agent")
-    status:Literal["pending","completed","error"]=Field(description="current status of the task assigned to the Librarian Agent",default="pending")
+    query:str=Field(description="specific query or instruction for the Librarian Agent to perform the assigned action, can contain details of the document to be retrieved or manipulated and any specific information to be included in the document retrieval or manipulation")
+    status:Literal["pending","completed","waiting_for_human","error"]=Field(description="current status of the task assigned to the Librarian Agent",default="pending")
     result:Optional[str]=Field(description="result of the task execution by the Librarian Agent, can contain details of the document retrieved or confirmation of document upload/update/deletion",default=None)
+    hitl_response:Optional[bool]=Field(description="flag to indicate if the user has made the confirmation regarding the update policy or not",default=None)
 
 class LibrarianTaskIntent(BaseModel):
     task:list[LibrarianTask]=Field(description="list of tasks assigned to the Librarian Agent in structured format based on the identified intent and routing decision by the Supervisor Agent")
