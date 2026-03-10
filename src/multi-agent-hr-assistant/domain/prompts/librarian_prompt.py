@@ -160,9 +160,6 @@ LibrarianFinalResponsePrompt = ChatPromptTemplate.from_messages([
         Executed Librarian Tasks:
         {tasks}
 
-        Retrieved Documents (if any):
-        {retrieved_documents}
-
         ------------------------------------------------
         TASK TYPES
         ------------------------------------------------
