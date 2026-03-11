@@ -7,7 +7,7 @@ redis=get_redis_client()
 def save_agent_state_for_final_response(agent_state:AgentState):
     try:
         redis.set(
-            f"user_id:{agent_state.user_id}:conversation_id:{agent_state.key}:state",
+            f"user_id:{agent_state.user_id}:conversation_id:{agent_state.key}:state:agent:{agent_state.agent_name}",
             json.dumps(agent_state.state),
             ex=600
         )
@@ -15,9 +15,9 @@ def save_agent_state_for_final_response(agent_state:AgentState):
         print("Error saving agent state to Redis:", str(e))
 
 #function to retrieve agent state from Redis
-def get_agent_state_for_final_response(user_id:str, key:str) -> dict:
+def get_agent_state_for_final_response(user_id:str, key:str, agent_name:str) -> dict:
     try:
-        state_json = redis.get(f"user_id:{user_id}:conversation_id:{key}:state")
+        state_json = redis.get(f"user_id:{user_id}:conversation_id:{key}:state:agent:{agent_name}")
         if state_json:
             return json.loads(state_json)
         return {}
