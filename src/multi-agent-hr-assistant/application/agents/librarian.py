@@ -211,11 +211,11 @@ class LibrarianAgent:
             StateGraph: State graph for the Librarian Agent containing the model node, decision node, tool execution node, HITL node and final response node
         """
         librarian_graph=StateGraph(LibrarianState)
-        librarian_graph.add_state("model_node", self.librarian_model_node)
-        librarian_graph.add_state("decision_node", self.librarian_decision_node)
-        librarian_graph.add_state("tool_node", self.librarian_tool_execution_node)
-        librarian_graph.add_state("hitl_node", self.librarian_hitl_node)
-        librarian_graph.add_state("final_response", self.librarian_final_response_node)
+        librarian_graph.add_node("model_node", self.librarian_model_node)
+        librarian_graph.add_node("decision_node", self.librarian_decision_node)
+        librarian_graph.add_node("tool_node", self.librarian_tool_execution_node)
+        librarian_graph.add_node("hitl_node", self.librarian_hitl_node)
+        librarian_graph.add_node("final_response", self.librarian_final_response_node)
 
         librarian_graph.add_edge(START, "model_node")
         librarian_graph.add_edge("model_node", "decision_node")
