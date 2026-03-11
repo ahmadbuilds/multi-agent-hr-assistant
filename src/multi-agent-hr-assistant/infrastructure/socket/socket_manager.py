@@ -17,16 +17,16 @@ async def join_room(sid, room):
     await socket_manager.enter_room(sid, room)
     print(f"Client {sid} joined room: {room}")
 
-async def broadcast_hitl_event(user_id: str, conversation_id: str, event_data: dict):
+async def broadcast_hitl_event(user_id: str, conversation_id: str, agent_name: str, event_data: dict):
     """
     Broadcasts a HITL event to a specific channel/room.
     The channel name format matches the frontend expectation:
-    HITL_Intervention_Channel:{user_id}:{conversation_id}:Clerk
+    HITL_Intervention_Channel:{user_id}:{conversation_id}:{agent_name}
     """
-    channel = f"HITL_Intervention_Channel:{user_id}:{conversation_id}:Clerk"
+    channel = f"HITL_Intervention_Channel:{user_id}:{conversation_id}:{agent_name}"
     print(f"Broadcasting HITL event to {channel}: {event_data}")
     #emit the event with the name of the channel so the frontend can listen specifically to it
-    await socket_manager.emit(channel, {"event_data": event_data})
+    await socket_manager.emit(channel, {"event_data": event_data, "agent_name": agent_name})
     
     # emit a generic 'message' event for fallback listeners
-    await socket_manager.emit('message', {"channel": channel, "event_data": event_data})
+    await socket_manager.emit('message', {"channel": channel, "event_data": event_data, "agent_name": agent_name})

@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { useSocket } from "@/components/socket-provider" // Adjust path as needed
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
-import { HITLEventPayload, TicketCreationDetails, TicketCreationClassification, SocketMessagePayload } from "@/types/hitl"
+import { HITLEventPayload, TicketCreationDetails, TicketCreationClassification, SocketMessagePayload, LibrarianTask } from "@/types/hitl"
 
 interface HITLRequestModalProps {
   userId: string
@@ -20,6 +20,8 @@ export function HITLRequestModal({ userId, conversationId }: HITLRequestModalPro
   const { socket } = useSocket()
   const [isOpen, setIsOpen] = useState(false)
   const [taskData, setTaskData] = useState<TicketCreationDetails | null>(null)
+  const [librarianTask, setLibrarianTask] = useState<LibrarianTask | null>(null)
+  const [agentName, setAgentName] = useState<"Clerk" | "Librarian" | "">("")
   const [formData, setFormData] = useState<TicketCreationDetails>({} as TicketCreationDetails)
   const [loading, setLoading] = useState(false)
   const [showConfirmation, setShowConfirmation] = useState(false)
@@ -27,34 +29,54 @@ export function HITLRequestModal({ userId, conversationId }: HITLRequestModalPro
   useEffect(() => {
     if (!socket || !userId || !conversationId) return
 
-    const channel = `HITL_Intervention_Channel:${userId}:${conversationId}:Clerk`
-    console.log(`Subscribing to ${channel}`)
+    const clerkChannel = `HITL_Intervention_Channel:${userId}:${conversationId}:Clerk`
+    const librarianChannel = `HITL_Intervention_Channel:${userId}:${conversationId}:Librarian`
+    
+    console.log(`Subscribing to HITL channels`)
 
-    const handleHITLEvent = (data: HITLEventPayload | undefined) => {
+    const handleHITLEvent = (data: HITLEventPayload | undefined, channelName: string) => {
         console.log("HITL Event Received:", data)
-      if (data && data.hitl_task) {
-        if (data.hitl_task.action === "ticket_creation") {
-            const details = (data.hitl_task as TicketCreationClassification).details;
-            setTaskData(details)
-            setFormData(details) // Initialize form with received data
-            setIsOpen(true)
-            setShowConfirmation(false) // Reset confirmation state
+      if (data) {
+        if (channelName.endsWith("Clerk") && data.hitl_task) {
+          if (data.hitl_task.action === "ticket_creation") {
+              const details = (data.hitl_task as TicketCreationClassification).details;
+              setAgentName("Clerk")
+              setTaskData(details)
+              setFormData(details) // Initialize form with received data
+              setIsOpen(true)
+              setShowConfirmation(false) // Reset confirmation state
+          }
+        } else if (channelName.endsWith("Librarian") && data.action) {
+           let parsedAction: LibrarianTask;
+           if (typeof data.action === 'string') {
+               parsedAction = JSON.parse(data.action) as LibrarianTask;
+           } else {
+               parsedAction = data.action as LibrarianTask;
+           }
+           
+           if (parsedAction && parsedAction.status === 'waiting_for_human') {
+               setAgentName("Librarian")
+               setLibrarianTask(parsedAction)
+               setIsOpen(true)
+           }
         }
       }
     }
 
-    // Subscribe to the channel/event
-    socket.on(channel, handleHITLEvent)
+    // Subscribe to the channels
+    socket.on(clerkChannel, (data) => handleHITLEvent(data, clerkChannel))
+    socket.on(librarianChannel, (data) => handleHITLEvent(data, librarianChannel))
     
     // Also listen for "message" event as a fallback
     socket.on("message", (data: SocketMessagePayload) => {
-        if (data?.channel === channel) {
-             handleHITLEvent(data.event_data)
+        if (data?.channel === clerkChannel || data?.channel === librarianChannel) {
+             handleHITLEvent(data.event_data, data.channel)
         }
     })
 
     return () => {
-      socket.off(channel, handleHITLEvent)
+      socket.off(clerkChannel)
+      socket.off(librarianChannel)
       socket.off("message")
     }
   }, [socket, userId, conversationId])
@@ -67,25 +89,38 @@ export function HITLRequestModal({ userId, conversationId }: HITLRequestModalPro
     }))
   }
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (librarianConfirmValue?: boolean) => {
     setLoading(true)
     try {
       const supabase = createClient()
       const { data: { session } } = await supabase.auth.getSession()
       
+      let bodyData;
+      if (agentName === "Librarian") {
+          bodyData = {
+              detail: librarianConfirmValue, // true for Accept, false for Reject
+              conversation_id: conversationId,
+              user_id: userId,
+              agent_name: "Librarian"
+          }
+      } else {
+          bodyData = {
+              ...formData,
+              accepted: showConfirmation ? true : undefined,
+              status: "in_progress",
+              conversation_id: conversationId,
+              user_id: userId,
+              agent_name: "Clerk"
+          }
+      }
+
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/hitl_response`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${session?.access_token || ''}`
         },
-        body: JSON.stringify({
-          ...formData,
-          accepted: showConfirmation ? true : undefined,
-          status: "in_progress",
-          conversation_id: conversationId,
-          user_id: userId
-        }),
+        body: JSON.stringify(bodyData),
       })
 
       if (!response.ok) {
@@ -120,9 +155,31 @@ export function HITLRequestModal({ userId, conversationId }: HITLRequestModalPro
   }
 
 
-  if (!isOpen || !taskData) return null
+  if (!isOpen || (!taskData && !librarianTask)) return null
 
-  if (showConfirmation) {
+  if (agentName === "Librarian" && librarianTask) {
+      return (
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+          <DialogHeader>
+            <DialogTitle>Confirm Policy Document Update</DialogTitle>
+          </DialogHeader>
+          <div className="py-4 space-y-2 text-sm text-foreground/80">
+              <p className="mb-4">Are you sure you want to proceed with this policy update?</p>
+              <p><strong>Query:</strong> {librarianTask.query}</p>
+          </div>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="destructive" onClick={() => handleSubmit(false)} disabled={loading}>
+                {loading ? "Submitting..." : "Reject"}
+            </Button>
+            <Button onClick={() => handleSubmit(true)} disabled={loading}>
+                {loading ? "Submitting..." : "Accept"}
+            </Button>
+          </div>
+        </Dialog>
+      )
+  }
+
+  if (showConfirmation && taskData) {
       return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
           <DialogHeader>
@@ -136,7 +193,7 @@ export function HITLRequestModal({ userId, conversationId }: HITLRequestModalPro
           </div>
           <div className="flex justify-end gap-2 mt-4">
             <Button variant="outline" onClick={() => setShowConfirmation(false)}>Back</Button>
-            <Button onClick={handleSubmit} disabled={loading}>
+            <Button onClick={() => handleSubmit()} disabled={loading}>
                 {loading ? "Submitting..." : "Yes, I'm sure"}
             </Button>
           </div>
@@ -186,7 +243,7 @@ export function HITLRequestModal({ userId, conversationId }: HITLRequestModalPro
              />
           </div>
 
-          {(formData.ticket_type === 'leave' || taskData.ticket_type === 'leave') && (
+          {(formData.ticket_type === 'leave' || taskData?.ticket_type === 'leave') && (
               <div className="space-y-2">
                   <Label htmlFor="leave_days">Number of Leave Days</Label>
                    <Input 
