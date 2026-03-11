@@ -244,7 +244,7 @@ class ClerkAgent:
                 user_id=state.user_query.user_id
                 conversation_id=state.user_query.conversation_id
                 #updating the final response in Redis after successful execution
-                agent_state=get_agent_state_for_final_response(user_id,conversation_id)
+                agent_state=get_agent_state_for_final_response(user_id,conversation_id,"Clerk")
                 if agent_state:
                     agent_state["final_response"]=response.content
                     save_agent_state_for_final_response(agent_state)
@@ -252,6 +252,8 @@ class ClerkAgent:
             except Exception as e:
                 print(f"Exception in Clerk Final Response Node: {e}. Retrying...")
                 counter-=1
+        print("Failed to generate final response after multiple attempts.")
+        return END
     
     #Function to create the Clerk Agent State Graph
     def create_clerk_agent_graph(self)->StateGraph:
