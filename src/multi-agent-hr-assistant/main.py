@@ -29,7 +29,7 @@ async def redis_listener():
     redis = get_redis_client()
     pubsub = redis.pubsub()
     
-    await pubsub.psubscribe("HITL_Intervention_Channel:*:*:Clerk")
+    await pubsub.psubscribe("HITL_Intervention_Channel:*:*:*")
     
     print("Started Redis listener for HITL events...")
     
@@ -39,14 +39,16 @@ async def redis_listener():
                 channel = message["channel"]
                 data = json.loads(message["data"])
                 
-                # Extract user_id and conversation_id from channel
+                # Extract user_id, conversation_id and agent_name from channel
+                # Format: HITL_Intervention_Channel:{user_id}:{conversation_id}:{agent_name}
                 parts = channel.split(":")
                 if len(parts) >= 4:
                     user_id = parts[1]
                     conversation_id = parts[2]
+                    agent_name = parts[3]
                     
                     # Broadcast via Socket.IO
-                    await broadcast_hitl_event(user_id, conversation_id, data)
+                    await broadcast_hitl_event(user_id, conversation_id, agent_name, data)
             except Exception as e:
                 print(f"Error processing Redis message: {e}")
 
@@ -106,6 +108,7 @@ async def hitl_response(response_data:dict,authorization:str=Header(None))->dict
     
     token=authorization.replace("Bearer ","")
     conversation_id=response_data.get("conversation_id")
+    agent_name=response_data.get("agent_name", "Clerk")
     
     if not conversation_id:
         raise HTTPException(status_code=400, detail="conversation_id is required in the response data")
@@ -118,6 +121,6 @@ async def hitl_response(response_data:dict,authorization:str=Header(None))->dict
         raise HTTPException(status_code=401, detail="Invalid auth token")
     
     #if the user is found, store the HITL response in Redis for further processing
-    response_channel=f"HITL_Response_Channel:{user.id}:{conversation_id}:Clerk"
+    response_channel=f"HITL_Response_Channel:{user.id}:{conversation_id}:{agent_name}"
     publish_event(response_channel,response_data)
     return {"status":"HITL response event published successfully"}
