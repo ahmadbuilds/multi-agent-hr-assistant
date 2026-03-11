@@ -29,6 +29,7 @@ class SupervisorClerkGraphExecutor(ClerkGraphExecutionPort):
             agent_state=AgentState(
                 user_id=self.clerk_state.user_query.user_id,
                 key=self.clerk_state.user_query.conversation_id,
+                agent_name="Clerk",
                 state={
                     "status":"initialized",
                     "final_response":"",
