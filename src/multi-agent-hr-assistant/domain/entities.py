@@ -54,7 +54,9 @@ class ClerkMultipleTasksOutput(BaseModel):
 class AgentState(BaseModel):
     user_id:str=Field(description="unique identifier for the user associated with this agent state")
     key:str=Field(description="unique key to identify the agent state in Redis")
+    agent_name:Literal["Clerk","Librarian"]=Field(description="name of the agent whose state is being saved")
     state:dict=Field(description="state of the agent to be saved in Redis")
+    
 
 #pydantic model for Supervisor to handle multi-intent queries
 class TaskIntent(BaseModel):
