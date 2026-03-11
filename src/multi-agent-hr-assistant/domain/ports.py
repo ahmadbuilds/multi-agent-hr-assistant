@@ -149,11 +149,11 @@ class VectorStorePort(ABC):
         pass
 
     @abstractmethod
-    def delete_chunks_by_document_hash(self,document_hash:str)->bool:
+    def delete_chunks_by_chunk_hash(self,chunk_hash:str)->bool:
         """
-        Method to delete chunks from the vector store based on the document hash
+        Method to delete chunks from the vector store based on the chunk hash
         Args:
-            document_hash (str): Hash of the document for which to delete the chunks
+            chunk_hash (str): Hash of the chunk for which to delete the corresponding chunks from the vector store
         Returns:
             bool: True if deletion is successful, False otherwise
         """
