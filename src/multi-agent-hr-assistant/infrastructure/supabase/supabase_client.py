@@ -15,7 +15,7 @@ def get_user_from_token(token:str):
 #function to get the previous chat history using user_id and conversation_id
 def get_chat_history(conversation_id:str)->list:
     try:
-        response=supabase.table("messages").select("*").eq("conversation_id", conversation_id).order("created_at", desc=False).execute()
+        response=supabase.table("messages").select("*").eq("chat_id", conversation_id).order("created_at", desc=False).execute()
         return response.data
     except Exception as e:
         print("Error retrieving chat history:", str(e))
@@ -30,9 +30,9 @@ def save_message_to_db(message_data:dict)->bool:
         print("Error saving message to database:", str(e))
         return False
 #function to get the leave balance for a user using user_id
-def fetch_user_leave_balance(user_id:str)->int:
+async def fetch_user_leave_balance(user_id:str)->int:
     try:
-        response=supabase.table("leave_balances").select("balance").eq("user_id", user_id).single().execute()
+        response=supabase.table("leave_balance").select("balance").eq("user_id", user_id).single().execute()
         if response.data:
             return response.data.get("balance", 0)
         return 0
@@ -41,7 +41,7 @@ def fetch_user_leave_balance(user_id:str)->int:
         return 0
     
 #function to create a ticket in the database
-def create_ticket_in_db(ticket_data:dict)->bool:
+async def create_ticket_in_db(ticket_data:dict)->bool:
     try:
         response=supabase.table("tickets").insert(ticket_data).execute()
         return len(response.data)>0
