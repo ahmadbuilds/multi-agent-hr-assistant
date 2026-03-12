@@ -16,6 +16,7 @@ class SupervisorClerkGraphExecutor(ClerkGraphExecutionPort):
         self.clerk_state=state
     #Method to execute the Clerk Agent State Graph
     def execute_clerk_agent_graph(self)->bool:
+        agent_state=None
         try:
             llm_model=create_model_instance("mistral:latest")
             leave_balance_port=ClerkLeaveBalanceAdapter()

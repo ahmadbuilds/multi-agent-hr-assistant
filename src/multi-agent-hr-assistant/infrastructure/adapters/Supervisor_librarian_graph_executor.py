@@ -13,9 +13,9 @@ from infrastructure.adapters.redis_store import RedisDocumentStore
 class SupervisorLibrarianGraphExecutor(LibrarianGraphExecutionPort):
     def __init__(self,state:LibrarianState):
         self.librarian_state=state
-        self.ingestion_service=IngestionService()
         self.chroma_store=ChromaVectorStore()
         self.redis_store=RedisDocumentStore()
+        self.ingestion_service=IngestionService(self.redis_store,self.chroma_store)
 
     #function to update the state of librarian
     def update_librarian_state(self,state:LibrarianState):
@@ -23,6 +23,7 @@ class SupervisorLibrarianGraphExecutor(LibrarianGraphExecutionPort):
 
     #Method to execute the Librarian Agent State Graph
     def execute_librarian_agent_graph(self)->bool:
+        agent_state=None
         try:
             llm_model=create_model_instance("orca-mini:3b")
             retrieval_port=LibrarianRetrievalAdapter()
