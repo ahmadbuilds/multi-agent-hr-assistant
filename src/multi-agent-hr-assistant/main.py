@@ -1,11 +1,16 @@
+import sys
+import os
+sys.path.insert(0, os.path.dirname(__file__))
+
 from fastapi import FastAPI,Header,HTTPException,status
-from fastapi.middleware.cors import CORSMiddleware
-from domain.entities import UserQuery,TicketCreation
+from starlette.middleware.cors import CORSMiddleware
+from domain.entities import UserQuery, TicketCreation
 from infrastructure.supabase.supabase_client import get_user_from_token,fetch_user_leave_balance,create_ticket_in_db
 from infrastructure.redis.redis_client import publish_event
 import asyncio
-from infrastructure.socket.socket_manager import socket_app, broadcast_hitl_event
-from infrastructure.redis.redis_config import get_redis_client
+import socketio as sio_module
+from infrastructure.socket.socket_manager import socket_manager, broadcast_hitl_event
+from infrastructure.redis.redis_config import get_async_redis_client
 import json
 from application.states import SupervisorState
 from application.workflow import SupervisorWorkflow
@@ -13,23 +18,21 @@ from infrastructure.supabase.supabase_client import get_chat_history,save_messag
 from langchain_core.messages import HumanMessage, AIMessage
 app = FastAPI()
 
-# Mount Socket.IO app
-app.mount("/socket.io", socket_app)
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+combined_app = sio_module.ASGIApp(socket_manager, app)
 
 @app.on_event("startup")
 async def startup_event():
     asyncio.create_task(redis_listener())
 
 async def redis_listener():
-    redis = get_redis_client()
+    redis = get_async_redis_client()
     pubsub = redis.pubsub()
     
     await pubsub.psubscribe("HITL_Intervention_Channel:*:*:*")
@@ -149,3 +152,7 @@ async def hitl_response(response_data:dict,authorization:str=Header(None))->dict
     response_channel=f"HITL_Response_Channel:{user.id}:{conversation_id}:{agent_name}"
     publish_event(response_channel,response_data)
     return {"status":"HITL response event published successfully"}
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:combined_app", host="0.0.0.0", port=8000, reload=True)
