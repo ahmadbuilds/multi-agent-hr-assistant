@@ -1,7 +1,7 @@
 from domain.ports import LeaveBalancePort,TicketCreationPort
 from domain.tools.clerk_tool import make_get_leave_balance_tool,make_ticket_creation_tool
 from domain.prompts.clerk_prompt import Clerk_Classification_prompt,Clerk_Inner_Model_Prompt,Clerk_Final_Response_Prompt
-from domain.entities import ClerkMultipleTasksOutput, TicketCreation
+from domain.entities import ClerkMultipleTasksOutput, TicketCreation, TicketCreationClassification, GetBalanceClassification, GeneralInformationClassification
 from application.states import ClerkClassificationState, ClerkState
 from langchain_core.language_models.chat_models import BaseChatModel
 from langgraph.graph import END,StateGraph,START
@@ -44,19 +44,19 @@ class ClerkAgent:
                 "pending_tasks":deque()
             }
     #Decision Node for Clerk Agent
-    def Clerk_Decision_Node(self,state:ClerkState)->Literal["inner","final","hitl"]:
+    def Clerk_Decision_Node(self,state:ClerkState)->dict:
         """
         Decision Node for Clerk Agent to decide whether to proceed to Inner Model Node
         or to Final Response Node based on the pending tasks in the Clerk State.
         """
         if state.hitl_state:
-            state.next_step="hitl"
+            next_step="hitl"
         elif state.pending_tasks:
-            state.next_step="inner"
+            next_step="inner"
         else:
-            state.next_step="final"
+            next_step="final"
 
-        return state.next_step
+        return {"next_step": next_step}
     #Clerk Inner Model Node
     def Clerk_Inner_Model_Node(self, state:ClerkState)->dict:
         """
@@ -69,7 +69,14 @@ class ClerkAgent:
                     current_task=current_task.model_dump(),
                     user_query=state.user_query.query
                 )
-            structured_llm_model=self.llm_model.with_structured_output(ClerkClassificationState)
+            # Pick the concrete Pydantic class based on the already-classified action
+            action_to_schema = {
+                "ticket_creation": TicketCreationClassification,
+                "get_balance": GetBalanceClassification,
+                "general_information": GeneralInformationClassification,
+            }
+            output_schema = action_to_schema.get(current_task.action, GeneralInformationClassification)
+            structured_llm_model=self.llm_model.with_structured_output(output_schema)
             response=structured_llm_model.invoke(list(state.messages)+formatted_prompt)
             
             if current_task.action=="general_information" or current_task.action=="get_balance" or current_task.action=="ticket_creation":
