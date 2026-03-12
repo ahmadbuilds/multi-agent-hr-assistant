@@ -1,6 +1,6 @@
 import socketio
 
-socket_manager = socketio.AsyncServer(async_mode='asgi', cors_allowed_origins='*')
+socket_manager = socketio.AsyncServer(async_mode='asgi', cors_allowed_origins="*")
 
 socket_app = socketio.ASGIApp(socket_manager)
 
