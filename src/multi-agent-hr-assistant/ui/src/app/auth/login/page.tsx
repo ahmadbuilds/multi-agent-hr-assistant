@@ -39,7 +39,7 @@ export default function LoginPage() {
   return (
     <div className="w-full max-w-md p-8 rounded-2xl border border-white/5 bg-card/60 backdrop-blur-xl shadow-2xl relative overflow-hidden">
       {/* Subtle top gloss */}
-      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-50" />
+      <div className="absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white/20 to-transparent opacity-50" />
       
       <div className="flex flex-col space-y-2 text-center mb-8">
         <h3 className="font-bold tracking-tight text-3xl text-foreground">Welcome Back</h3>

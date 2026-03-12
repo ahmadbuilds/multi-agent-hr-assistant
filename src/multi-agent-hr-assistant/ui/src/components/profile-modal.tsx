@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { createClient } from "@/lib/supabase/client"
+import type { User } from "@supabase/supabase-js"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -9,9 +10,18 @@ import { Dialog, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { User as UserIcon, Camera, Lock } from "lucide-react"
 import { toast } from "sonner"
 
+type ProfileRow = {
+  id: string
+  username?: string | null
+  full_name?: string | null
+  avatar_url?: string | null
+}
+
+type ProfileModalUser = Pick<User, "id" | "user_metadata"> & ProfileRow
+
 export function ProfileModal() {
   const [open, setOpen] = useState(false)
-  const [user, setUser] = useState<any>(null)
+  const [user, setUser] = useState<ProfileModalUser | null>(null)
   const [fullName, setFullName] = useState("")
   const [username, setUsername] = useState("")
   const [avatarUrl, setAvatarUrl] = useState("")
@@ -19,7 +29,7 @@ export function ProfileModal() {
   const [newPassword, setNewPassword] = useState("")
   
   const [loading, setLoading] = useState(false)
-  const supabase = createClient()
+  const [supabase] = useState(() => createClient())
 
   useEffect(() => {
     // Fetch initial user
@@ -33,7 +43,13 @@ export function ProfileModal() {
            .single()
          
          if (profile) {
-           setUser(profile)
+           setUser({
+             id: profile.id,
+             username: profile.username,
+             full_name: profile.full_name,
+             avatar_url: profile.avatar_url,
+             user_metadata: user.user_metadata,
+           })
            setFullName(profile.full_name || "")
            setUsername(profile.username || "")
            setAvatarUrl(profile.avatar_url || "")
@@ -44,13 +60,18 @@ export function ProfileModal() {
       }
     }
     getUser()
-  }, [])
+  }, [supabase])
 
   const handleUpdate = async () => {
+    if (!user) {
+      toast.error("User profile is not loaded yet")
+      return
+    }
+
     setLoading(true)
     let updatedAvatarUrl = avatarUrl
 
-    if (avatarFile && user) {
+    if (avatarFile) {
         // Enforce "One Image Per User": Wipe the user's folder before uploading
         try {
             console.log("Cleaning up old avatars for:", user.id)
@@ -152,7 +173,8 @@ export function ProfileModal() {
                   </label>
                   <input 
                     id="avatar-upload" 
-                    type="file" 
+                    type="file"
+                    title="files" 
                     accept="image/*" 
                     className="hidden" 
                     onChange={(e) => {

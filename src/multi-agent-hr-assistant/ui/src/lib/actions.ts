@@ -18,7 +18,7 @@ async function createClient() {
         set(name: string, value: string, options: CookieOptions) {
           try {
             cookieStore.set({ name, value, ...options })
-          } catch (error) {
+          } catch {
             // The `set` method was called from a Server Component.
             // This can be ignored if you have middleware refreshing
             // user sessions.
@@ -27,7 +27,7 @@ async function createClient() {
         remove(name: string, options: CookieOptions) {
           try {
             cookieStore.set({ name, value: '', ...options })
-          } catch (error) {
+          } catch {
             // The `delete` method was called from a Server Component.
             // This can be ignored if you have middleware refreshing
             // user sessions.
@@ -125,7 +125,7 @@ export async function getUserProfile() {
   return data
 }
 
-export async function uploadDocument(formData: FormData) {
+export async function uploadDocument(formData: FormData): Promise<{ success: boolean; publicUrl: string; fileName: string; extractedText: string }> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
@@ -133,7 +133,7 @@ export async function uploadDocument(formData: FormData) {
   }
 
   const file = formData.get('file') as File
-  if (!file) throw new Error("No file content")
+  if (!file) throw new Error("No file provided")
 
   const fileName = `${Date.now()}_${file.name}`
   const { error: uploadError } = await supabase.storage
@@ -146,13 +146,27 @@ export async function uploadDocument(formData: FormData) {
     .from('Policy Documents')
     .getPublicUrl(fileName)
 
-  // Insert into documents table
-  const { error: dbError } = await supabase.from('documents').insert({
-    document_url: publicUrl,
-    document_name: file.name,
-    uploaded_by: user.id
-  })
+  // Extract text content from the uploaded file
+  let extractedText = ''
+  try {
+    const arrayBuffer = await file.arrayBuffer()
+    const buffer = Buffer.from(arrayBuffer)
+    const ext = file.name.split('.').pop()?.toLowerCase()
 
-  if (dbError) throw dbError
-  return { success: true, publicUrl, fileName: file.name }
+    if (ext === 'pdf') {
+      const { PDFParse } = await import('pdf-parse')
+      const parser = new PDFParse({ data: buffer })
+      const data = await parser.getText()
+      extractedText = data.text
+      await parser.destroy()
+    } else if (ext === 'docx' || ext === 'doc') {
+      const mammoth = await import('mammoth')
+      const result = await mammoth.extractRawText({ buffer })
+      extractedText = result.value
+    }
+  } catch (extractError) {
+    console.error('Error extracting text from document:', extractError)
+  }
+
+  return { success: true, publicUrl, fileName: file.name, extractedText }
 }

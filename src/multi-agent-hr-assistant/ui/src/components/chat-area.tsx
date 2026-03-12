@@ -90,8 +90,9 @@ export function ChatArea({ chatId, initialMessages = [] }: ChatAreaProps) {
     let activeChatId = chatId
     let uploadedDocUrl: string | undefined
     let uploadedDocName: string | undefined
+    let extractedText: string = ""
 
-    // 1. Upload File if present
+    // 1. Upload File if present and extract its text content
     if (currentFile) {
         const formData = new FormData()
         formData.append('file', currentFile)
@@ -100,6 +101,7 @@ export function ChatArea({ chatId, initialMessages = [] }: ChatAreaProps) {
             const result = await uploadDocument(formData)
             uploadedDocUrl = result.publicUrl
             uploadedDocName = result.fileName
+            extractedText = result.extractedText || ""
         } catch (err) {
             console.error("Upload failed", err)
             toast.error(`Failed to upload ${currentFile.name}`, {
@@ -109,38 +111,80 @@ export function ChatArea({ chatId, initialMessages = [] }: ChatAreaProps) {
     }
 
     try {
-        // 2. Create Chat OR Send Message
+        // 2. Create Chat OR Send Message to DB
         if (!activeChatId) {
             const newChat = await createChat(currentInput, uploadedDocUrl, uploadedDocName)
             activeChatId = newChat.chat_id
-            router.refresh()
+
+            // 3. Call backend /process_query BEFORE navigating so AI response is
+            //    saved to DB by the time the new chat page loads its messages
+            const { data: { session } } = await supabase.auth.getSession()
+            if (!session?.access_token) throw new Error("No active session. Please log in again.")
+
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/process_query`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    query: currentInput,
+                    UploadedText: extractedText,
+                    isAdmin,
+                    conversation_id: activeChatId,
+                    auth_token: session.access_token
+                })
+            })
+
+            if (!response.ok) {
+                const errData = await response.json().catch(() => ({}))
+                throw new Error(errData?.error || "Backend returned an error")
+            }
+
+            // Navigate to the new chat — initialMessages will include both user + AI msgs from DB
             router.push(`/dashboard/chat/${activeChatId}`)
+            router.refresh()
+
         } else {
             await sendMessage(activeChatId, currentInput, 'user', uploadedDocUrl, uploadedDocName)
-            router.refresh() 
-        }
+            router.refresh()
 
-        // 3. AI Response (Placeholder)
-        // Wait for real backend integration or use polling/sockets for real AI responses
-        // preventing fake response creation if using real backend
-        /*
-        setTimeout(() => {
+            // 3. Get auth token and call backend /process_query
+            const { data: { session } } = await supabase.auth.getSession()
+            if (!session?.access_token) throw new Error("No active session. Please log in again.")
+
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/process_query`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    query: currentInput,
+                    UploadedText: extractedText,
+                    isAdmin,
+                    conversation_id: activeChatId,
+                    auth_token: session.access_token
+                })
+            })
+
+            if (!response.ok) {
+                const errData = await response.json().catch(() => ({}))
+                throw new Error(errData?.error || "Backend returned an error")
+            }
+
+            const data = await response.json()
+            const aiResponse: string = data.final_response || "Sorry, I couldn't process your request."
+
+            // 4. Display AI response in UI (backend already saves it to DB)
             const aiMsg: Message = { 
-                id: Date.now() + 2, 
-                content: "This is a simulated AI response.", 
+                id: Date.now() + 1, 
+                content: aiResponse, 
                 type: 'ai', 
                 created_at: new Date().toISOString() 
             }
             setMessages(prev => [...prev, aiMsg])
-            if (activeChatId) {
-                sendMessage(activeChatId, "This is a simulated AI response.", 'ai')
-            }
-        }, 1000)
-        */
+        }
         
     } catch (error) {
         console.error(error)
-        toast.error("Failed to send message")
+        toast.error("Failed to process request", {
+            description: error instanceof Error ? error.message : "Please try again."
+        })
     } finally {
         setLoading(false)
     }
@@ -253,6 +297,7 @@ export function ChatArea({ chatId, initialMessages = [] }: ChatAreaProps) {
                     id="file-upload"
                     title="Handle file selection"
                     className="hidden"
+                    accept=".pdf,.doc,.docx"
                     onChange={handleFileSelect}
                 />
                 <label 

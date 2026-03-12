@@ -158,27 +158,6 @@ create policy "Users can insert messages in their chats." on public.messages
   );
 
 /**
-* DOCUMENTS
-*/
-create table if not exists public.documents (
-  document_id uuid default gen_random_uuid() primary key,
-  document_url text not null,
-  document_name text not null,
-  vector_stored boolean default false,
-  uploaded_at timestamp with time zone default timezone('utc'::text, now()) not null,
-  uploaded_by uuid references auth.users on delete cascade
-);
-
-alter table public.documents enable row level security;
-
-create policy "Anyone can view documents." on public.documents
-  for select using (auth.role() = 'authenticated');
-
--- Only admin (crisitiano678@gmail.com) can insert documents
-create policy "Only admin can insert documents." on public.documents
-  for insert with check (auth.jwt() ->> 'email' = 'crisitiano678@gmail.com');
-
-/**
 * STORAGE POLICIES
 */
 

@@ -10,12 +10,17 @@ import { createClient } from "@/lib/supabase/client"
 import { getChats } from "@/lib/actions"
 import { useEffect, useState, useRef } from "react"
 
-export function Sidebar({ chats: initialChats }: { chats: any[] }) {
+type ChatListItem = {
+  chat_id: string
+  title: string
+}
+
+export function Sidebar({ chats: initialChats }: { chats: ChatListItem[] }) {
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
   
-  const [chats, setChats] = useState(initialChats)
+  const [chats, setChats] = useState<ChatListItem[]>(initialChats)
   const [offset, setOffset] = useState(initialChats.length)
   const [loading, setLoading] = useState(false)
   const [hasMore, setHasMore] = useState(true)
@@ -39,7 +44,7 @@ export function Sidebar({ chats: initialChats }: { chats: any[] }) {
   const loadMore = async () => {
     if (loading || !hasMore) return
     setLoading(true)
-    const newChats = await getChats(offset, 20)
+    const newChats = (await getChats(offset, 20)) as ChatListItem[]
     
     if (newChats.length < 20) {
       setHasMore(false)

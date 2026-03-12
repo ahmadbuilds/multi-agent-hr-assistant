@@ -15,7 +15,7 @@ export interface TicketCreationClassification {
 
 export interface OtherClassification {
   action: string;
-  details?: any;
+  details?: unknown;
 }
 
 export type ClerkClassificationState = TicketCreationClassification | OtherClassification;

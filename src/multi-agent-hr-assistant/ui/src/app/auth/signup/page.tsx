@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Loader2, Mail, Lock, User, Upload } from "lucide-react"
+import { Loader2, Mail, User } from "lucide-react"
 
 export default function SignupPage() {
   const [email, setEmail] = useState("")
@@ -62,8 +62,9 @@ export default function SignupPage() {
         router.refresh()
       }
       
-    } catch (err: any) {
-      setError(err.message || "Something went wrong")
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Something went wrong"
+      setError(message)
     } finally {
       setLoading(false)
     }
@@ -91,7 +92,7 @@ export default function SignupPage() {
 
   return (
     <div className="w-full max-w-md p-8 rounded-2xl border border-white/5 bg-card/60 backdrop-blur-xl shadow-2xl relative overflow-hidden">
-      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-50" />
+      <div className="absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white/20 to-transparent opacity-50" />
       
       <div className="flex flex-col space-y-2 text-center mb-8">
         <h3 className="font-bold tracking-tight text-3xl text-foreground">Create Account</h3>
