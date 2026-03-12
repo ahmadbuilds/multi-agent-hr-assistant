@@ -1,7 +1,9 @@
 from supabase import create_client,Client
-from config import key,url
+from config import key,url,service_key
 
 supabase:Client=create_client(url,key)
+# Service-role client bypasses RLS — used for trusted backend writes (AI messages)
+_service_supabase:Client=create_client(url,service_key)
 
 #function to get user details from supabase using auth token
 def get_user_from_token(token:str):
@@ -24,7 +26,7 @@ def get_chat_history(conversation_id:str)->list:
 #function to save messages to the database
 def save_message_to_db(message_data:dict)->bool:
     try:
-        response=supabase.table("messages").insert(message_data).execute()
+        response=_service_supabase.table("messages").insert(message_data).execute()
         return len(response.data)>0
     except Exception as e:
         print("Error saving message to database:", str(e))
