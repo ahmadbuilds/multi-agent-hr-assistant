@@ -47,21 +47,21 @@ class LibrarianAgent:
             print("Error in Librarian Model Node:", str(e))
             return {}
 
-    def librarian_decision_node(self,state:LibrarianState)->Literal["tool_node","final_response","hitl"]:
+    def librarian_decision_node(self,state:LibrarianState)->dict:
         """
         method for deciding the next step for the Librarian Agent based on the identified intent
         Args:
             state (LibrarianState): Current state of the Librarian Agent
         Returns:
-            Literal["tool_node","final_response","hitl"]: Next step for the Librarian Agent to take, can be "tool_node" if there are pending tasks to be performed, "hitl" if there are tasks requiring human intervention and "final_response" if there are no pending tasks and no tasks requiring human intervention
+            dict: Dictionary with next_step
         """
         if state.hitl_state:
-            state.next_step="hitl"
+            next_step="hitl"
         elif any(task.status=="pending" for task in state.action):
-            state.next_step="tool_node"
+            next_step="tool_node"
         else:
-            state.next_step="final_response"
-        return state.next_step
+            next_step="final_response"
+        return {"next_step": next_step}
     
     def librarian_tool_execution_node(self,state:LibrarianState)->dict:
         """
