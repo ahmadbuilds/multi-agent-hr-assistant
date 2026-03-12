@@ -19,7 +19,7 @@ class IngestionService:
         returns:
             str: The SHA256 hash of the input text.
         """
-        return sha256(text.encode(str="utf-8")).hexdigest()
+        return sha256(text.encode("utf-8")).hexdigest()
 
     #function to split the text into chunks
     def split_text(self, text: str, chunk_size: int = 1000, chunk_overlap: int = 200) -> list:
