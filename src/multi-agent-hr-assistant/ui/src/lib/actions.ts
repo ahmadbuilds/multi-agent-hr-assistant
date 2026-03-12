@@ -1,34 +1,35 @@
 "use server"
 
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
 // Helper to create server client
 async function createClient() {
   const cookieStore = await cookies()
 
+  // Keep an in-memory map so that setAll mutations are visible to subsequent
+  // getAll calls within the same request (cookieStore may not reflect .set()
+  // changes immediately, which causes auth.uid() to be null in PostgREST).
+  const cookieMap = new Map(
+    cookieStore.getAll().map((c) => [c.name, c.value])
+  )
+
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value
+        getAll() {
+          return Array.from(cookieMap, ([name, value]) => ({ name, value }))
         },
-        set(name: string, value: string, options: CookieOptions) {
+        setAll(cookiesToSet) {
           try {
-            cookieStore.set({ name, value, ...options })
+            cookiesToSet.forEach(({ name, value, options }) => {
+              cookieMap.set(name, value)
+              cookieStore.set(name, value, options)
+            })
           } catch {
             // The `set` method was called from a Server Component.
-            // This can be ignored if you have middleware refreshing
-            // user sessions.
-          }
-        },
-        remove(name: string, options: CookieOptions) {
-          try {
-            cookieStore.set({ name, value: '', ...options })
-          } catch {
-            // The `delete` method was called from a Server Component.
             // This can be ignored if you have middleware refreshing
             // user sessions.
           }
@@ -71,7 +72,7 @@ export async function createChat(firstMessage: string, attachmentUrl?: string, a
     .select()
     .single()
 
-  if (chatError) throw chatError
+  if (chatError) throw new Error(chatError.message)
 
   // Add Message
   await supabase.from('messages').insert({
@@ -88,6 +89,10 @@ export async function createChat(firstMessage: string, attachmentUrl?: string, a
 
 export async function sendMessage(chatId: string, content: string, type: 'user' | 'ai' = 'user', attachmentUrl?: string, attachmentName?: string) {
   const supabase = await createClient()
+  // Must call getUser() first so @supabase/ssr initialises the session JWT
+  // into the client. Without this, auth.uid() is null in RLS and inserts fail.
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error("Unauthorized")
   const { error } = await supabase.from('messages').insert({
     chat_id: chatId,
     content,
@@ -95,19 +100,20 @@ export async function sendMessage(chatId: string, content: string, type: 'user' 
     attachment_url: attachmentUrl,
     attachment_name: attachmentName
   })
-  if (error) throw error
+  if (error) throw new Error(error.message)
   revalidatePath(`/dashboard/chat/${chatId}`)
 }
 
 export async function getMessages(chatId: string) {
   const supabase = await createClient()
+  await supabase.auth.getUser()
   const { data, error } = await supabase
     .from('messages')
     .select('*')
     .eq('chat_id', chatId)
     .order('created_at', { ascending: true })
 
-  if (error) throw error
+  if (error) throw new Error(error.message)
   return data || []
 }
 
