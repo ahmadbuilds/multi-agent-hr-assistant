@@ -5,7 +5,7 @@ from application.states import SupervisorState,ClerkState,LibrarianState
 from infrastructure.llm_providers.ollama_provider import create_model_instance
 from domain.ports import ClerkGraphExecutionPort, LibrarianGraphExecutionPort
 from domain.entities import UserQuery
-class Workflow:
+class SupervisorWorkflow:
     def __init__(self,supervisor_state:SupervisorState):
         self.supervisor_state=supervisor_state
         self.llm_model=create_model_instance("phi3:mini")

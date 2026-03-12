@@ -3,12 +3,16 @@ from langgraph.graph import StateGraph,START,END
 from domain.prompts.supervisor_prompt import SupervisorDecompositionPrompt,SupervisorFinalResponsePrompt
 from domain.tools.supervisor_tool import make_supervisor_execute_clerk_graph_tool, make_supervisor_execute_librarian_graph_tool
 from application.states import LibrarianState, SupervisorState,ClerkState
-from langchain.chat_models import BaseChatModel
+from langchain_core.language_models.chat_models import BaseChatModel
 from infrastructure.redis.redis_client import get_agent_state_for_final_response
 from domain.entities import SupervisorTaskIntent
 from langchain_core.messages import AIMessage, HumanMessage
 from domain.ports import ClerkGraphExecutionPort, LibrarianGraphExecutionPort
-from IPython.display import Image,display
+try:
+    from IPython.display import Image,display
+except ImportError:
+    Image=None
+    display=None
 #Supervisor Agent State Graph
 class SupervisorAgent:
     def __init__(self,llm_model:BaseChatModel,SupervisorClerkGraphExecutorPort:ClerkGraphExecutionPort,SupervisorLibrarianGraphExecutorPort:LibrarianGraphExecutionPort):
@@ -99,12 +103,12 @@ class SupervisorAgent:
                 #invoking the Clerk Agent Graph Executor Port to execute the Clerk Agent Graph with the updated clerk state
                 self.SupervisorClerkGraphExecutorPort.update_clerk_state(clerk_state)
                 clerk_graph_executor=make_supervisor_execute_clerk_graph_tool(self.SupervisorClerkGraphExecutorPort)
-                clerk_graph_executor(clerk_state)
+                clerk_graph_executor.invoke({})
 
                 #reading the final response of the clerk agent from Redis after execution
-                final_clerk_response=get_agent_state_for_final_response(state.user_query.user_id,state.user_query.conversation_id,"Clerk")
+                clerk_result_state=get_agent_state_for_final_response(state.user_query.user_id,state.user_query.conversation_id,"Clerk")
                 tasks.status="completed"
-                tasks.result=final_clerk_response
+                tasks.result=clerk_result_state.get("final_response","") if clerk_result_state else ""
             elif tasks.agent.lower()=="librarian":
                 state.active_agent="Librarian"
                 tasks.status="running"
@@ -116,12 +120,12 @@ class SupervisorAgent:
                 #invoking the Librarian Agent Graph Executor Port to execute the Librarian Agent Graph with the updated librarian state
                 self.SupervisorLibrarianGraphExecutorPort.update_librarian_state(librarian_state)
                 librarian_graph_executor=make_supervisor_execute_librarian_graph_tool(self.SupervisorLibrarianGraphExecutorPort)
-                librarian_graph_executor(librarian_state)
+                librarian_graph_executor.invoke({})
 
                 #reading the final response of the librarian agent from Redis after execution
-                final_librarian_response=get_agent_state_for_final_response(state.user_query.user_id,state.user_query.conversation_id,"Librarian")
+                librarian_result_state=get_agent_state_for_final_response(state.user_query.user_id,state.user_query.conversation_id,"Librarian")
                 tasks.status="completed"
-                tasks.result=final_librarian_response
+                tasks.result=librarian_result_state.get("final_response","") if librarian_result_state else ""
         except Exception as e:
             print(f"Error in Supervisor_tool_node for intent {tasks.intent}: {e}")
             tasks.status="error"

@@ -3,12 +3,17 @@ from domain.ports import LibrarianRetrievalPort, LibrarianInsertionPort, Librari
 from domain.entities import LibrarianTaskIntent
 from application.states import LibrarianState
 from domain.tools.librarian_tool import make_librarian_retrieval_tool, make_librarian_insertion_tool, make_librarian_update_tool
-from langchain.chat_models import BaseChatModel
-from IPython.display import Image,display
+from langchain_core.language_models.chat_models import BaseChatModel
+try:
+    from IPython.display import Image,display
+except ImportError:
+    Image=None
+    display=None
 from langgraph.graph import START,END,StateGraph
 from domain.prompts.librarian_prompt import librarianPrompt,LibrarianFinalResponsePrompt
 from typing import Literal
 from infrastructure.redis.redis_client import publish_event, save_agent_state_for_final_response,get_agent_state_for_final_response,save_agent_state_for_hitl_intervention
+from domain.entities import AgentState
 import json
 from infrastructure.redis.redis_config import get_redis_client
 class LibrarianAgent:
@@ -83,7 +88,7 @@ class LibrarianAgent:
                     }
                 
                 if pending_task.hitl_response:
-                    update_result=self.update_tool(pending_task.query)
+                    update_result=self.update_tool.invoke({"document_content": pending_task.query})
                     if update_result:
                         pending_task.result="Document updated successfully."
                     else:
@@ -99,12 +104,12 @@ class LibrarianAgent:
                 pending_task.status="completed"
                 
             elif pending_task.action=="retrieve_document":
-                retrieval_results=self.retrieval_tool(pending_task.query)
+                retrieval_results=self.retrieval_tool.invoke({"query": pending_task.query})
                 pending_task.result=f"Retrieved the following documents based on the query: {retrieval_results}"
                 pending_task.status="completed"
                 
             elif pending_task.action=="insert_document":
-                insertion_result = self.insertion_tool.run(pending_task.query)
+                insertion_result = self.insertion_tool.invoke({"document_content": pending_task.query})
                 pending_task.result = "Inserted successfully." if insertion_result else "Insertion failed."
                 pending_task.status = "completed"
             
@@ -140,7 +145,12 @@ class LibrarianAgent:
             })
 
             #saving the librarian state to redis for retrieval when the user responds to the HITL prompt
-            save_agent_state_for_hitl_intervention(state)
+            save_agent_state_for_hitl_intervention(AgentState(
+                user_id=user_id,
+                key=conversation_id,
+                agent_name="Librarian",
+                state={"hitl_task":hitl_task.model_dump()}
+            ))
 
             redis=get_redis_client()
             pubsub = redis.pubsub()
@@ -169,7 +179,7 @@ class LibrarianAgent:
             return {"messages":[AIMessage(content="Error handling human intervention for the task. Please try again later."+str(e))]}
     
     #librarian final response node to generate the final response for the user after all tasks have been executed and there are no tasks requiring human intervention
-    def librarian_final_response_node(self,state:LibrarianState)->END:
+    def librarian_final_response_node(self,state:LibrarianState)->dict:
         """
         method for generating the final response for the user after all tasks have been executed and there are no tasks requiring human intervention in the Librarian Agent
         args:
@@ -188,18 +198,29 @@ class LibrarianAgent:
                 user_id=state.user_query.user_id
                 conversation_id=state.user_query.conversation_id
 
-                agent_state=get_agent_state_for_final_response(user_id, conversation_id, "Librarian")
-                if agent_state:
-                    agent_state.state["final_response"] = response.content
-                    save_agent_state_for_final_response(agent_state)
-
-                state.response=response.content
-                return END
+                existing=get_agent_state_for_final_response(user_id, conversation_id, "Librarian")
+                agent_state=AgentState(
+                    user_id=user_id,
+                    key=conversation_id,
+                    agent_name="Librarian",
+                    state={
+                        **existing,
+                        "status":"completed",
+                        "final_response":response.content,
+                    }
+                )
+                save_agent_state_for_final_response(agent_state)
+                return {
+                    "messages":[AIMessage(content=response.content)],
+                    "response":response.content,
+                }
             except Exception as e:
                 print("Error in Librarian Final Response Node:", str(e),"Retrying...")
                 counter-=1
         print("Failed to generate final response after multiple attempts.")
-        return END
+        return {
+            "messages":[AIMessage(content="Sorry, I am unable to generate a response at the moment.")],
+        }
 
     #function to create the Librarian Agent State Graph
     def create_librarian_agent_graph(self)->StateGraph:

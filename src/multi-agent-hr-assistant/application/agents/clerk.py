@@ -3,13 +3,18 @@ from domain.tools.clerk_tool import make_get_leave_balance_tool,make_ticket_crea
 from domain.prompts.clerk_prompt import Clerk_Classification_prompt,Clerk_Inner_Model_Prompt,Clerk_Final_Response_Prompt
 from domain.entities import ClerkMultipleTasksOutput, TicketCreation
 from application.states import ClerkClassificationState, ClerkState
-from langchain.chat_models import BaseChatModel
+from langchain_core.language_models.chat_models import BaseChatModel
 from langgraph.graph import END,StateGraph,START
 from typing import Literal
 from collections import deque
 from langchain_core.messages import AIMessage
-from IPython.display import Image,display
+try:
+    from IPython.display import Image,display
+except ImportError:
+    Image=None
+    display=None
 from infrastructure.redis.redis_client import save_agent_state_for_final_response,get_agent_state_for_final_response,publish_event,save_agent_state_for_hitl_intervention
+from domain.entities import AgentState
 from infrastructure.redis.redis_config import get_redis_client
 import json
 #Clerk Agent Class Implementation
@@ -69,7 +74,7 @@ class ClerkAgent:
             
             if current_task.action=="general_information" or current_task.action=="get_balance" or current_task.action=="ticket_creation":
                 final_response=list(state.final_response or [])
-                final_response.append(response.model_dump_json())
+                final_response.append(response)
                 return{
                     "messages":[AIMessage(content=response.model_dump_json())],
                     "final_response":final_response,
@@ -100,7 +105,7 @@ class ClerkAgent:
                 while counter>0:
                     try:
                         leave_balance_tool=make_get_leave_balance_tool(self.leave_balance_port,state.user_query.auth_token)
-                        leave_balance:int=leave_balance_tool()
+                        leave_balance:int=leave_balance_tool.invoke({})
                         state.tool_results.append({
                             "action":"get_balance",
                             "success":True,
@@ -124,19 +129,19 @@ class ClerkAgent:
             while counter>0:
                 try:
                     #Checking if LLM has extracted the necessary details for ticket creation or not
-                    if not all([tool_execution.details.get("ticket_type"), tool_execution.details.get("subject"), tool_execution.details.get("description")]):
+                    if not all([tool_execution.details.ticket_type, tool_execution.details.subject, tool_execution.details.description]):
                         state.hitl_state.append(tool_execution)
                         return {
                             "hitl_state":state.hitl_state,
                             "messages":[AIMessage(content="Insufficient details for ticket creation. Need HITL intervention.")],
                         }
-                    elif tool_execution.details.get("ticket_type")=="leave" and tool_execution.details.get("leave_days") is None:
+                    elif tool_execution.details.ticket_type=="leave" and tool_execution.details.leave_days is None:
                         state.hitl_state.append(tool_execution)
                         return{
                             "hitl_state":state.hitl_state,
                             "messages":[AIMessage(content="Insufficient details for leave ticket creation. Need HITL intervention.")],
                         }
-                    elif (tool_execution.details.get("ticket_type") in ["leave","complaint"]) and tool_execution.details.get("accepted") is None:
+                    elif (tool_execution.details.ticket_type in ["leave","complaint"]) and tool_execution.details.accepted is None:
                         state.hitl_state.append(tool_execution)
                         return{
                             "hitl_state":state.hitl_state,
@@ -145,12 +150,12 @@ class ClerkAgent:
                     
                     #proceeding with ticket creation if all necessary details are present
                     ticket_creation_date=TicketCreation(
-                        ticket_type=tool_execution.details.get("ticket_type"),
-                        subject=tool_execution.details.get("subject"),
-                        description=tool_execution.details.get("description"),
+                        ticket_type=tool_execution.details.ticket_type,
+                        subject=tool_execution.details.subject,
+                        description=tool_execution.details.description,
                         status="in_progress",
-                        leave_days=tool_execution.details.get("leave_days"),
-                        accepted=tool_execution.details.get("accepted")
+                        leave_days=tool_execution.details.leave_days,
+                        accepted=tool_execution.details.accepted
                     )
                     if ticket_creation_date.accepted is False:
                         state.tool_results.append({
@@ -161,7 +166,7 @@ class ClerkAgent:
                         })
                     else:        
                         ticket_creation_tool=make_ticket_creation_tool(self.ticket_creation_port,ticket_creation_date,state.user_query.auth_token)
-                        response:bool=ticket_creation_tool()
+                        response:bool=ticket_creation_tool.invoke({})
                         state.tool_results.append({
                             "action":"ticket_creation",
                             "success":response,
@@ -205,7 +210,12 @@ class ClerkAgent:
         )
 
         #saving the updated Clerk State with HITL state to Redis
-        save_agent_state_for_hitl_intervention(state)
+        save_agent_state_for_hitl_intervention(AgentState(
+            user_id=user_id,
+            key=conversation_id,
+            agent_name="Clerk",
+            state={"hitl_task":hitl_data.model_dump()}
+        ))
         
         redis=get_redis_client()
 
@@ -219,8 +229,13 @@ class ClerkAgent:
 
                 pubsub.unsubscribe(f"HITL_Response_Channel:{user_id}:{conversation_id}:Clerk")
 
-                result:ClerkClassificationState=state.final_response.popleft()
-                result.details=response_payload.get("details",result.details)
+                result:ClerkClassificationState=state.final_response.pop()
+                # The frontend sends ticket fields at the top level of response_payload
+                # Extract only the ticket-relevant fields to update details
+                detail_keys={"ticket_type","subject","description","leave_days","accepted","status"}
+                updated_details={k:v for k,v in response_payload.items() if k in detail_keys}
+                if updated_details and hasattr(result,"details") and result.details is not None:
+                    result=result.model_copy(update={"details":result.details.model_copy(update=updated_details)})
                 state.final_response.appendleft(result)
                 return{
                     "final_response":state.final_response,
@@ -229,7 +244,7 @@ class ClerkAgent:
     
 
     #Final Response Node for Clerk Agent
-    def Clerk_Final_Response_Node(self,state:ClerkState)->END:
+    def Clerk_Final_Response_Node(self,state:ClerkState)->dict:
         """
         final response node for Clerk Agent to compile final responses based on the tool results and final responses.
         """ 
@@ -244,16 +259,28 @@ class ClerkAgent:
                 user_id=state.user_query.user_id
                 conversation_id=state.user_query.conversation_id
                 #updating the final response in Redis after successful execution
-                agent_state=get_agent_state_for_final_response(user_id,conversation_id,"Clerk")
-                if agent_state:
-                    agent_state["final_response"]=response.content
-                    save_agent_state_for_final_response(agent_state)
-                return END
+                existing=get_agent_state_for_final_response(user_id,conversation_id,"Clerk")
+                agent_state=AgentState(
+                    user_id=user_id,
+                    key=conversation_id,
+                    agent_name="Clerk",
+                    state={
+                        **existing,
+                        "status":"completed",
+                        "final_response":response.content,
+                    }
+                )
+                save_agent_state_for_final_response(agent_state)
+                return {
+                    "messages":[AIMessage(content=response.content)],
+                }
             except Exception as e:
                 print(f"Exception in Clerk Final Response Node: {e}. Retrying...")
                 counter-=1
         print("Failed to generate final response after multiple attempts.")
-        return END
+        return {
+            "messages":[AIMessage(content="Sorry, I am unable to generate a response at the moment.")],
+        }
     
     #Function to create the Clerk Agent State Graph
     def create_clerk_agent_graph(self)->StateGraph:
