@@ -1,7 +1,7 @@
 from domain.ports import ClerkGraphExecutionPort
 from application.states import ClerkState
 from application.agents.clerk import ClerkAgent
-from infrastructure.llm_providers.ollama_provider import create_model_instance
+from infrastructure.llm_providers.groq_provider import create_model_instance
 from infrastructure.adapters.clerk_leave_balance_adapter import ClerkLeaveBalanceAdapter
 from infrastructure.adapters.clerk_ticket_creation_adapter import ClerkTicketCreationAdapter
 from infrastructure.redis.redis_client import save_agent_state_for_final_response
@@ -18,7 +18,7 @@ class SupervisorClerkGraphExecutor(ClerkGraphExecutionPort):
     def execute_clerk_agent_graph(self)->bool:
         agent_state=None
         try:
-            llm_model=create_model_instance("mistral:latest")
+            llm_model=create_model_instance("openai/gpt-oss-20b")
             leave_balance_port=ClerkLeaveBalanceAdapter()
             ticket_creation_port=ClerkTicketCreationAdapter()
             clerk_agent=ClerkAgent(llm_model,leave_balance_port,ticket_creation_port)

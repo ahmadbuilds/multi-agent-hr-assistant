@@ -8,7 +8,7 @@ from domain.entities import UserQuery
 class SupervisorWorkflow:
     def __init__(self,supervisor_state:SupervisorState):
         self.supervisor_state=supervisor_state
-        self.llm_model=create_model_instance("phi3:mini")
+        self.llm_model=create_model_instance()
         self.SupervisorClerkGraphExecutorPort: ClerkGraphExecutionPort = SupervisorClerkGraphExecutor(ClerkState)
         self.SupervisorLibrarianGraphExecutorPort: LibrarianGraphExecutionPort = SupervisorLibrarianGraphExecutor(LibrarianState)
         self.supervisor_agent_instance=SupervisorAgent(self.llm_model,self.SupervisorClerkGraphExecutorPort,self.SupervisorLibrarianGraphExecutorPort)

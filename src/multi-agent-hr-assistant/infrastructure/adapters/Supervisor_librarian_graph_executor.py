@@ -1,6 +1,6 @@
 from domain.ports import LibrarianGraphExecutionPort
 from application.states import LibrarianState
-from infrastructure.llm_providers.ollama_provider import create_model_instance
+from infrastructure.llm_providers.groq_provider import create_model_instance
 from infrastructure.adapters.librarian_retrieval_adapter import LibrarianRetrievalAdapter
 from infrastructure.adapters.librarian_insertion_adapter import LibrarianInsertionAdapter
 from infrastructure.adapters.librarian_updation_adapter import LibrarianUpdateAdapter
@@ -25,7 +25,7 @@ class SupervisorLibrarianGraphExecutor(LibrarianGraphExecutionPort):
     def execute_librarian_agent_graph(self)->bool:
         agent_state=None
         try:
-            llm_model=create_model_instance("orca-mini:3b")
+            llm_model=create_model_instance("llama-3.3-70b-versatile")
             retrieval_port=LibrarianRetrievalAdapter()
             insertion_port=LibrarianInsertionAdapter(self.ingestion_service)
             updation_port=LibrarianUpdateAdapter(self.ingestion_service)
