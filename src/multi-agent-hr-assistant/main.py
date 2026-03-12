@@ -7,7 +7,10 @@ import asyncio
 from infrastructure.socket.socket_manager import socket_app, broadcast_hitl_event
 from infrastructure.redis.redis_config import get_redis_client
 import json
-
+from application.states import SupervisorState
+from application.workflow import SupervisorWorkflow
+from infrastructure.supabase.supabase_client import get_chat_history,save_message_to_db
+from langchain_core.messages import HumanMessage, AIMessage
 app = FastAPI()
 
 # Mount Socket.IO app
@@ -59,6 +62,28 @@ async def process_query(user_query:UserQuery)->dict:
         return {"error":"Invalid auth token"}
     
     user_query.user_id=user.id
+
+    #fetch the previous chat history using user_id and conversation_id
+    chat_history=get_chat_history(user_query.conversation_id)
+    #converting the chat history to the format required by the workflow
+    chat_messages = [HumanMessage(content=msg["content"]) if msg["type"] == "user" else AIMessage(content=msg["content"]) for msg in chat_history]
+
+    #initialize the Supervisor State
+    supervisor_state=SupervisorState(user_query=user_query,messages=chat_messages)   
+
+    #process the user query through the Supervisor Workflow
+    workflow=SupervisorWorkflow(supervisor_state)
+
+    final_response=workflow.process_user_query(user_query)
+
+    #save the user query and final response to the database
+    save_message_to_db({
+        "chat_id": user_query.conversation_id,
+        "content": final_response,
+        "type": "ai"
+    })
+
+    return {"final_response": final_response}
 
 @app.get("/leave_balance")
 async def get_leave_balance_endpoint(authorization:str=Header(None))->dict:
