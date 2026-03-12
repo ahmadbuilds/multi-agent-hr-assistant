@@ -1,5 +1,6 @@
 import os
 import redis
+import redis.asyncio as aioredis
 
 REDIS_HOST=os.getenv("REDIS_HOST", "localhost")
 REDIS_PORT=int(os.getenv("REDIS_PORT", 6379))
@@ -15,3 +16,12 @@ redis_client=redis.Redis(
 
 def get_redis_client() -> redis.Redis:
     return redis_client
+
+def get_async_redis_client() -> aioredis.Redis:
+    return aioredis.Redis(
+        host=REDIS_HOST,
+        port=REDIS_PORT,
+        password=REDIS_PASSWORD,
+        decode_responses=True,
+        socket_keepalive=True
+    )
