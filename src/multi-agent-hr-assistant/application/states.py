@@ -56,5 +56,8 @@ class LibrarianState(BaseModel):
     #librarian HITL state
     hitl_state:list[LibrarianTask]=[]
 
+    #next step for librarian agent
+    next_step: Optional[Literal["tool_node","final_response","hitl"]] = None
+
     #final response to be returned to the Supervisor
     response: Optional[str] = None
