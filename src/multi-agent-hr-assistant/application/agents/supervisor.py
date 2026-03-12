@@ -31,7 +31,7 @@ class SupervisorAgent:
         """
         try:
             formatted_prompt=SupervisorDecompositionPrompt.format_messages(
-                user_query=state.user_query.query,
+                query=state.user_query.query,
                 isUploaded=state.user_query.UploadedText,
                 isAdmin=state.user_query.isAdmin
             )

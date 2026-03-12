@@ -2,7 +2,7 @@ from application.agents.supervisor import SupervisorAgent
 from infrastructure.adapters.supervisor_clerk_graph_executor import SupervisorClerkGraphExecutor
 from infrastructure.adapters.Supervisor_librarian_graph_executor import SupervisorLibrarianGraphExecutor
 from application.states import SupervisorState,ClerkState,LibrarianState
-from infrastructure.llm_providers.ollama_provider import create_model_instance
+from infrastructure.llm_providers.groq_provider import create_model_instance
 from domain.ports import ClerkGraphExecutionPort, LibrarianGraphExecutionPort
 from domain.entities import UserQuery
 class SupervisorWorkflow:
