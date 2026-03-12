@@ -51,22 +51,22 @@ class SupervisorAgent:
             }
     
     #function to decide the next action based on the identified intents and execute the corresponding tools or agent graphs
-    def Supervisor_decision_node(self,state:SupervisorState)->Literal["result","tool_node"]:
+    def Supervisor_decision_node(self,state:SupervisorState)->dict:
         """
         function to decide the next action based on the identified intents and decision node count, and execute the corresponding tools or agent graphs
         args:
             state (SupervisorState): Current state of the Supervisor Agent
         returns:
-            str: "result" if all tasks are completed or in error state, "tool_node" if there are still pending tasks to be executed
+            dict: Dictionary with next steps
         """
         pending_tasks=[intent for intent in state.identified_intent if intent.status=="pending"]
         
         if not pending_tasks:
-            state.next_steps="result"
+            next_steps="result"
         else:
-            state.next_steps="tool_node"
+            next_steps="tool_node"
         
-        return state.next_steps
+        return {"next_steps": next_steps}
     #function to Supervisor Tool Node which executes the corresponding agent graph or tool based on the identified intents
     def Supervisor_tool_node(self,state:SupervisorState)->dict:
         """
