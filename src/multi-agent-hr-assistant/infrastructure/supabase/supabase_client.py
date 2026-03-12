@@ -21,6 +21,14 @@ def get_chat_history(conversation_id:str)->list:
         print("Error retrieving chat history:", str(e))
         return []
     
+#function to save messages to the database
+def save_message_to_db(message_data:dict)->bool:
+    try:
+        response=supabase.table("messages").insert(message_data).execute()
+        return len(response.data)>0
+    except Exception as e:
+        print("Error saving message to database:", str(e))
+        return False
 #function to get the leave balance for a user using user_id
 def fetch_user_leave_balance(user_id:str)->int:
     try:
