@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -26,50 +26,61 @@ export function HITLRequestModal({ userId, conversationId }: HITLRequestModalPro
   const [loading, setLoading] = useState(false)
   const [showConfirmation, setShowConfirmation] = useState(false)
 
+  const resetModalState = () => {
+    setIsOpen(false)
+    setShowConfirmation(false)
+    setTaskData(null)
+    setLibrarianTask(null)
+    setAgentName("")
+  }
+
+
+  const handleHITLEventRef = useRef<((data: HITLEventPayload | undefined, channelName: string) => void) | null>(null)
+
+  handleHITLEventRef.current = useCallback((data: HITLEventPayload | undefined, channelName: string) => {
+    console.log("HITL Event Received:", data)
+    if (!data) return
+
+    if (channelName.endsWith("Clerk") && data.hitl_task) {
+      if (data.hitl_task.action === "ticket_creation") {
+        const details = (data.hitl_task as TicketCreationClassification).details
+        setAgentName("Clerk")
+        setTaskData(details)
+        setFormData(details ?? {} as TicketCreationDetails)
+        setShowConfirmation(false)
+        setIsOpen(true)
+      }
+    } else if (channelName.endsWith("Librarian") && data.hitl_task) {
+      let parsedTask: LibrarianTask
+      if (typeof data.hitl_task === "string") {
+        parsedTask = JSON.parse(data.hitl_task) as LibrarianTask
+      } else {
+        parsedTask = data.hitl_task as unknown as LibrarianTask
+      }
+      if (parsedTask && parsedTask.status === "waiting_for_human") {
+        setAgentName("Librarian")
+        setLibrarianTask(parsedTask)
+        setIsOpen(true)
+      }
+    }
+  }, [])
+
   useEffect(() => {
     if (!socket || !userId || !conversationId) return
 
     const clerkChannel = `HITL_Intervention_Channel:${userId}:${conversationId}:Clerk`
     const librarianChannel = `HITL_Intervention_Channel:${userId}:${conversationId}:Librarian`
-    
-    console.log(`Subscribing to HITL channels`)
 
-    const handleHITLEvent = (data: HITLEventPayload | undefined, channelName: string) => {
-        console.log("HITL Event Received:", data)
-      if (data) {
-        if (channelName.endsWith("Clerk") && data.hitl_task) {
-          if (data.hitl_task.action === "ticket_creation") {
-              const details = (data.hitl_task as TicketCreationClassification).details;
-              setAgentName("Clerk")
-              setTaskData(details)
-              setFormData(details ?? {} as TicketCreationDetails) 
-              setIsOpen(true)
-              setShowConfirmation(false) 
-          }
-        } else if (channelName.endsWith("Librarian") && data.action) {
-           let parsedAction: LibrarianTask;
-           if (typeof data.action === 'string') {
-               parsedAction = JSON.parse(data.action) as LibrarianTask;
-           } else {
-               parsedAction = data.action as LibrarianTask;
-           }
-           
-           if (parsedAction && parsedAction.status === 'waiting_for_human') {
-               setAgentName("Librarian")
-               setLibrarianTask(parsedAction)
-               setIsOpen(true)
-           }
-        }
-      }
-    }
+    console.log("Subscribing to HITL channels")
 
-
-    const clerkHandler = (data: HITLEventPayload | undefined) => handleHITLEvent(data, clerkChannel)
-    const librarianHandler = (data: HITLEventPayload | undefined) => handleHITLEvent(data, librarianChannel)
+    const clerkHandler = (data: HITLEventPayload | undefined) =>
+      handleHITLEventRef.current?.(data, clerkChannel)
+    const librarianHandler = (data: HITLEventPayload | undefined) =>
+      handleHITLEventRef.current?.(data, librarianChannel)
     const messageHandler = (data: SocketMessagePayload) => {
-        if (data?.channel === clerkChannel || data?.channel === librarianChannel) {
-             handleHITLEvent(data.event_data, data.channel)
-        }
+      if (data?.channel === clerkChannel || data?.channel === librarianChannel) {
+        handleHITLEventRef.current?.(data.event_data, data.channel)
+      }
     }
 
     socket.on(clerkChannel, clerkHandler)
@@ -91,7 +102,10 @@ export function HITLRequestModal({ userId, conversationId }: HITLRequestModalPro
     }))
   }
 
-  const handleSubmit = async (librarianConfirmValue?: boolean) => {
+  const handleSubmit = async (
+    librarianConfirmValue?: boolean,
+    clerkAcceptedOverride?: boolean
+  ) => {
     setLoading(true)
     try {
       const supabase = createClient()
@@ -108,7 +122,7 @@ export function HITLRequestModal({ userId, conversationId }: HITLRequestModalPro
       } else {
           bodyData = {
               ...formData,
-              accepted: showConfirmation ? true : undefined,
+            accepted: clerkAcceptedOverride ?? (showConfirmation ? true : undefined),
               status: "in_progress",
               conversation_id: conversationId,
               user_id: userId,
@@ -130,13 +144,60 @@ export function HITLRequestModal({ userId, conversationId }: HITLRequestModalPro
       }
 
       toast.success("Response submitted successfully")
-      setIsOpen(false)
+      resetModalState()
     } catch (error) {
       console.error("Error submitting HITL response:", error)
       toast.error("Failed to submit response. Please try again.")
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleClerkReject = async () => {
+    if (loading) return
+
+    setLoading(true)
+    try {
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/hitl_response`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session?.access_token || ''}`
+        },
+        body: JSON.stringify({
+          accepted: false,
+          conversation_id: conversationId,
+          user_id: userId,
+          agent_name: "Clerk"
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to submit HITL rejection")
+      }
+
+      toast.success("Request rejected")
+      resetModalState()
+    } catch (error) {
+      console.error("Error submitting HITL rejection:", error)
+      toast.error("Failed to reject request. Please try again.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleCloseAndReject = async () => {
+    if (loading) return
+
+    if (agentName === "Librarian") {
+      await handleSubmit(false)
+      return
+    }
+
+    await handleClerkReject()
   }
   
   const handleInitialSubmit = (e: React.FormEvent) => {
@@ -159,7 +220,14 @@ export function HITLRequestModal({ userId, conversationId }: HITLRequestModalPro
 
   if (agentName === "Librarian" && librarianTask) {
       return (
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <Dialog
+          open={isOpen}
+          onOpenChange={(open) => {
+            if (!open) {
+              void handleCloseAndReject()
+            }
+          }}
+        >
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Confirm Policy Document Update</DialogTitle>
@@ -183,7 +251,14 @@ export function HITLRequestModal({ userId, conversationId }: HITLRequestModalPro
 
   if (showConfirmation && taskData) {
       return (
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <Dialog
+          open={isOpen}
+          onOpenChange={(open) => {
+            if (!open) {
+              void handleCloseAndReject()
+            }
+          }}
+        >
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Confirm {formData.ticket_type === 'leave' ? 'Leave Request' : 'Complaint'}</DialogTitle>
@@ -195,7 +270,10 @@ export function HITLRequestModal({ userId, conversationId }: HITLRequestModalPro
                {formData.ticket_type === 'leave' && <p><strong>Leave Days:</strong> {formData.leave_days}</p>}
           </div>
           <div className="flex justify-end gap-2 mt-4">
-            <Button variant="outline" onClick={() => setShowConfirmation(false)}>Back</Button>
+            <Button variant="outline" onClick={() => setShowConfirmation(false)} disabled={loading}>Back</Button>
+            <Button variant="destructive" onClick={() => void handleClerkReject()} disabled={loading}>
+                {loading ? "Submitting..." : "Cancel"}
+            </Button>
             <Button onClick={() => handleSubmit()} disabled={loading}>
                 {loading ? "Submitting..." : "Yes, I'm sure"}
             </Button>
@@ -206,7 +284,14 @@ export function HITLRequestModal({ userId, conversationId }: HITLRequestModalPro
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) {
+          void handleCloseAndReject()
+        }
+      }}
+    >
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Additional Information Required</DialogTitle>
@@ -263,6 +348,9 @@ export function HITLRequestModal({ userId, conversationId }: HITLRequestModalPro
           )}
           
           <div className="flex justify-end gap-2 mt-4">
+            <Button type="button" variant="destructive" onClick={() => void handleClerkReject()} disabled={loading}>
+                {loading ? "Submitting..." : "Cancel "}
+            </Button>
             <Button type="submit" disabled={loading}>
                 {loading ? "Submitting..." : "Submit Response"}
             </Button>
