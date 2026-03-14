@@ -22,8 +22,8 @@ async def broadcast_hitl_event(user_id: str, conversation_id: str, agent_name: s
     Broadcasts a HITL event directly to connected Socket.IO clients.
     """
     channel = f"HITL_Intervention_Channel:{user_id}:{conversation_id}:{agent_name}"
-    print(f"[SOCKET] Broadcasting HITL event to channel '{channel}'")
-    print(f"[SOCKET] Payload being emitted: {event_data}")
+    # print(f"[SOCKET] Broadcasting HITL event to channel '{channel}'")
+    # print(f"[SOCKET] Payload being emitted: {event_data}")
 
 
     await socket_manager.emit(channel, event_data)
