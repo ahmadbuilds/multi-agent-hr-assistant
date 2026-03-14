@@ -1088,9 +1088,3 @@ For issues, questions, or suggestions:
 - Check existing documentation
 - Review troubleshooting section
 
----
-
-**Built with ❤️ using LangChain, FastAPI, and AI**
-
-Last Updated: March 15, 2026
-Version: 0.1.0
