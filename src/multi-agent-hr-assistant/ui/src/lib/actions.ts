@@ -73,16 +73,6 @@ export async function createChat(firstMessage: string, attachmentUrl?: string, a
     .single()
 
   if (chatError) throw new Error(chatError.message)
-
-  // Add Message
-  await supabase.from('messages').insert({
-    chat_id: chat.chat_id,
-    content: firstMessage,
-    type: 'user',
-    attachment_url: attachmentUrl,
-    attachment_name: attachmentName
-  })
-
   revalidatePath('/dashboard')
   return chat
 }

@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Paperclip, ArrowUp, X, FileText } from "lucide-react"
 import { toast } from "sonner"
-import { createChat, sendMessage, uploadDocument } from "@/lib/actions"
+import { createChat, uploadDocument } from "@/lib/actions"
 import { cn } from "@/lib/utils"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
@@ -32,10 +32,12 @@ export function ChatArea({ chatId, initialMessages = [] }: ChatAreaProps) {
   const [isAdmin, setIsAdmin] = useState(false)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  // Track activeChatId in state so HITLRequestModal mounts immediately when a chat is created
+  const [activeChatIdState, setActiveChatIdState] = useState<string | null>(chatId || null)
   
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
-  const supabase = createClient()
+    const [supabase] = useState(() => createClient())
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -46,7 +48,7 @@ export function ChatArea({ chatId, initialMessages = [] }: ChatAreaProps) {
         setIsAdmin(true)
       }
     })
-  }, [])
+    }, [supabase])
 
   const scrollToBottom = () => {
     if (messagesEndRef.current) {
@@ -92,7 +94,7 @@ export function ChatArea({ chatId, initialMessages = [] }: ChatAreaProps) {
     let uploadedDocName: string | undefined
     let extractedText: string = ""
 
-    // 1. Upload File if present and extract its text content
+
     if (currentFile) {
         const formData = new FormData()
         formData.append('file', currentFile)
@@ -111,13 +113,14 @@ export function ChatArea({ chatId, initialMessages = [] }: ChatAreaProps) {
     }
 
     try {
-        // 2. Create Chat OR Send Message to DB
         if (!activeChatId) {
             const newChat = await createChat(currentInput, uploadedDocUrl, uploadedDocName)
+            if (!newChat.chat_id) {
+                throw new Error("Failed to create chat")
+            }
             activeChatId = newChat.chat_id
+            setActiveChatIdState(newChat.chat_id)
 
-            // 3. Call backend /process_query BEFORE navigating so AI response is
-            //    saved to DB by the time the new chat page loads its messages
             const { data: { session } } = await supabase.auth.getSession()
             if (!session?.access_token) throw new Error("No active session. Please log in again.")
 
@@ -129,6 +132,8 @@ export function ChatArea({ chatId, initialMessages = [] }: ChatAreaProps) {
                     UploadedText: extractedText,
                     isAdmin,
                     conversation_id: activeChatId,
+                    attachment_url: uploadedDocUrl,
+                    attachment_name: uploadedDocName,
                     auth_token: session.access_token
                 })
             })
@@ -138,15 +143,13 @@ export function ChatArea({ chatId, initialMessages = [] }: ChatAreaProps) {
                 throw new Error(errData?.error || "Backend returned an error")
             }
 
-            // Navigate to the new chat — initialMessages will include both user + AI msgs from DB
+            
             router.push(`/dashboard/chat/${activeChatId}`)
             router.refresh()
 
         } else {
-            await sendMessage(activeChatId, currentInput, 'user', uploadedDocUrl, uploadedDocName)
             router.refresh()
 
-            // 3. Get auth token and call backend /process_query
             const { data: { session } } = await supabase.auth.getSession()
             if (!session?.access_token) throw new Error("No active session. Please log in again.")
 
@@ -158,6 +161,8 @@ export function ChatArea({ chatId, initialMessages = [] }: ChatAreaProps) {
                     UploadedText: extractedText,
                     isAdmin,
                     conversation_id: activeChatId,
+                    attachment_url: uploadedDocUrl,
+                    attachment_name: uploadedDocName,
                     auth_token: session.access_token
                 })
             })
@@ -170,7 +175,6 @@ export function ChatArea({ chatId, initialMessages = [] }: ChatAreaProps) {
             const data = await response.json()
             const aiResponse: string = data.final_response || "Sorry, I couldn't process your request."
 
-            // 4. Display AI response in UI (backend already saves it to DB)
             const aiMsg: Message = { 
                 id: Date.now() + 1, 
                 content: aiResponse, 
@@ -194,9 +198,10 @@ export function ChatArea({ chatId, initialMessages = [] }: ChatAreaProps) {
     <div className="flex flex-col h-full max-h-screen">
       <Header />
       
-      {/* HITL Request Modal */}
-      {currentUserId && chatId && (
-          <HITLRequestModal userId={currentUserId} conversationId={chatId} />
+      {/* HITL Request Modal — mounted as soon as userId + chatId are known (even before
+           router.push completes) so it does not miss the socket event from the backend */}
+      {currentUserId && (activeChatIdState) && (
+          <HITLRequestModal userId={currentUserId} conversationId={activeChatIdState} />
       )}
 
       {/* Messages Area */}
@@ -269,7 +274,7 @@ export function ChatArea({ chatId, initialMessages = [] }: ChatAreaProps) {
         </div>
       </div>
 
-      <div className="p-6 md:p-8 bg-gradient-to-t from-background via-background to-transparent pt-12">
+    <div className="p-6 md:p-8 bg-linear-to-t from-background via-background to-transparent pt-12">
         <form onSubmit={(e) => { e.preventDefault(); handleSend(); }} className="max-w-3xl mx-auto relative flex flex-col gap-2 bg-card/80 backdrop-blur-xl border border-white/10 rounded-2xl px-4 py-3 shadow-2xl ring-1 ring-white/5 focus-within:ring-primary/50 transition-all">
           
           {selectedFile && (
@@ -277,7 +282,7 @@ export function ChatArea({ chatId, initialMessages = [] }: ChatAreaProps) {
                   <div className="h-8 w-8 bg-primary/10 rounded flex items-center justify-center">
                       <FileText className="h-4 w-4 text-primary" />
                   </div>
-                  <span className="text-sm text-muted-foreground truncate max-w-[150px]">{selectedFile.name}</span>
+                  <span className="text-sm text-muted-foreground truncate max-w-37.5">{selectedFile.name}</span>
                   <button 
                     type="button"
                     title="Remove Attachment"

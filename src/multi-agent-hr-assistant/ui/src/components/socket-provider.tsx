@@ -20,9 +20,9 @@ export const useSocket = () => {
 export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
   const socketRef = useRef<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+  const [socket, setSocket] = useState<Socket | null>(null);
 
   useEffect(() => {
-    // Create socket only once; survive Strict Mode double-invoke
     if (!socketRef.current) {
       socketRef.current = io(
         process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000",
@@ -32,36 +32,38 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
           autoConnect: true,
         },
       );
+      
+      setSocket(socketRef.current);
     }
 
-    const socket = socketRef.current;
+    const sock = socketRef.current;
 
     const onConnect = () => setIsConnected(true);
     const onDisconnect = () => setIsConnected(false);
 
-    socket.on("connect", onConnect);
-    socket.on("disconnect", onDisconnect);
+    sock.on("connect", onConnect);
+    sock.on("disconnect", onDisconnect);
 
-    if (socket.connected) setIsConnected(true);
+    if (sock.connected) setIsConnected(true);
 
     return () => {
-      socket.off("connect", onConnect);
-      socket.off("disconnect", onDisconnect);
-      // Do NOT disconnect here — that causes 400s on Strict Mode remount.
-      // The socket is intentionally kept alive for the lifetime of the provider.
+      sock.off("connect", onConnect);
+      sock.off("disconnect", onDisconnect);
+      
     };
   }, []);
 
-  // Disconnect only when the provider is truly unmounted (e.g. page navigation)
+ 
   useEffect(() => {
     return () => {
       socketRef.current?.disconnect();
       socketRef.current = null;
+      setSocket(null);
     };
   }, []);
 
   return (
-    <SocketContext.Provider value={{ socket: socketRef.current, isConnected }}>
+    <SocketContext.Provider value={{ socket, isConnected }}>
       {children}
     </SocketContext.Provider>
   );

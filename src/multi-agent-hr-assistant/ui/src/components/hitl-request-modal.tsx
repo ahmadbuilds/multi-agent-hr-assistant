@@ -1,12 +1,12 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Dialog, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { useSocket } from "@/components/socket-provider" // Adjust path as needed
+import { useSocket } from "@/components/socket-provider" 
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
 import { HITLEventPayload, TicketCreationDetails, TicketCreationClassification, SocketMessagePayload, LibrarianTask } from "@/types/hitl"
@@ -42,9 +42,9 @@ export function HITLRequestModal({ userId, conversationId }: HITLRequestModalPro
               const details = (data.hitl_task as TicketCreationClassification).details;
               setAgentName("Clerk")
               setTaskData(details)
-              setFormData(details) // Initialize form with received data
+              setFormData(details ?? {} as TicketCreationDetails) 
               setIsOpen(true)
-              setShowConfirmation(false) // Reset confirmation state
+              setShowConfirmation(false) 
           }
         } else if (channelName.endsWith("Librarian") && data.action) {
            let parsedAction: LibrarianTask;
@@ -63,21 +63,23 @@ export function HITLRequestModal({ userId, conversationId }: HITLRequestModalPro
       }
     }
 
-    // Subscribe to the channels
-    socket.on(clerkChannel, (data) => handleHITLEvent(data, clerkChannel))
-    socket.on(librarianChannel, (data) => handleHITLEvent(data, librarianChannel))
-    
-    // Also listen for "message" event as a fallback
-    socket.on("message", (data: SocketMessagePayload) => {
+
+    const clerkHandler = (data: HITLEventPayload | undefined) => handleHITLEvent(data, clerkChannel)
+    const librarianHandler = (data: HITLEventPayload | undefined) => handleHITLEvent(data, librarianChannel)
+    const messageHandler = (data: SocketMessagePayload) => {
         if (data?.channel === clerkChannel || data?.channel === librarianChannel) {
              handleHITLEvent(data.event_data, data.channel)
         }
-    })
+    }
+
+    socket.on(clerkChannel, clerkHandler)
+    socket.on(librarianChannel, librarianHandler)
+    socket.on("message", messageHandler)
 
     return () => {
-      socket.off(clerkChannel)
-      socket.off(librarianChannel)
-      socket.off("message")
+      socket.off(clerkChannel, clerkHandler)
+      socket.off(librarianChannel, librarianHandler)
+      socket.off("message", messageHandler)
     }
   }, [socket, userId, conversationId])
 
@@ -98,7 +100,7 @@ export function HITLRequestModal({ userId, conversationId }: HITLRequestModalPro
       let bodyData;
       if (agentName === "Librarian") {
           bodyData = {
-              detail: librarianConfirmValue, // true for Accept, false for Reject
+              detail: librarianConfirmValue,
               conversation_id: conversationId,
               user_id: userId,
               agent_name: "Librarian"
@@ -139,14 +141,12 @@ export function HITLRequestModal({ userId, conversationId }: HITLRequestModalPro
   
   const handleInitialSubmit = (e: React.FormEvent) => {
       e.preventDefault()
-      
-      // Validation: Check if leave days is present for leave tickets
+    
       if (formData.ticket_type === 'leave' && !formData.leave_days) {
           toast.error("Please specify the number of leave days.")
           return
       }
 
-      // Confirmation: Ask for confirmation for leave or complaint tickets
       if (formData.ticket_type === 'leave' || formData.ticket_type === 'complaint') {
           setShowConfirmation(true)
       } else {
@@ -160,21 +160,23 @@ export function HITLRequestModal({ userId, conversationId }: HITLRequestModalPro
   if (agentName === "Librarian" && librarianTask) {
       return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
-          <DialogHeader>
-            <DialogTitle>Confirm Policy Document Update</DialogTitle>
-          </DialogHeader>
-          <div className="py-4 space-y-2 text-sm text-foreground/80">
-              <p className="mb-4">Are you sure you want to proceed with this policy update?</p>
-              <p><strong>Query:</strong> {librarianTask.query}</p>
-          </div>
-          <div className="flex justify-end gap-2 mt-4">
-            <Button variant="destructive" onClick={() => handleSubmit(false)} disabled={loading}>
-                {loading ? "Submitting..." : "Reject"}
-            </Button>
-            <Button onClick={() => handleSubmit(true)} disabled={loading}>
-                {loading ? "Submitting..." : "Accept"}
-            </Button>
-          </div>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Confirm Policy Document Update</DialogTitle>
+            </DialogHeader>
+            <div className="py-4 space-y-2 text-sm text-foreground/80">
+                <p className="mb-4">Are you sure you want to proceed with this policy update?</p>
+                <p><strong>Query:</strong> {librarianTask.query}</p>
+            </div>
+            <div className="flex justify-end gap-2 mt-4">
+              <Button variant="destructive" onClick={() => handleSubmit(false)} disabled={loading}>
+                  {loading ? "Submitting..." : "Reject"}
+              </Button>
+              <Button onClick={() => handleSubmit(true)} disabled={loading}>
+                  {loading ? "Submitting..." : "Accept"}
+              </Button>
+            </div>
+          </DialogContent>
         </Dialog>
       )
   }
@@ -182,8 +184,9 @@ export function HITLRequestModal({ userId, conversationId }: HITLRequestModalPro
   if (showConfirmation && taskData) {
       return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
-          <DialogHeader>
-            <DialogTitle>Confirm {formData.ticket_type === 'leave' ? 'Leave Request' : 'Complaint'}</DialogTitle>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Confirm {formData.ticket_type === 'leave' ? 'Leave Request' : 'Complaint'}</DialogTitle>
           </DialogHeader>
           <div className="py-4 space-y-2 text-sm text-foreground/80">
               <p className="mb-4">Are you sure you want to create this {formData.ticket_type} ticket?</p>
@@ -197,12 +200,14 @@ export function HITLRequestModal({ userId, conversationId }: HITLRequestModalPro
                 {loading ? "Submitting..." : "Yes, I'm sure"}
             </Button>
           </div>
+          </DialogContent>
         </Dialog>
       )
   }
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>Additional Information Required</DialogTitle>
           <p className="text-sm text-muted-foreground mt-1.5">
@@ -263,6 +268,7 @@ export function HITLRequestModal({ userId, conversationId }: HITLRequestModalPro
             </Button>
           </div>
         </form>
+      </DialogContent>
     </Dialog>
   )
 }

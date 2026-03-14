@@ -34,6 +34,12 @@ export function DialogHeader({ className, ...props }: React.HTMLAttributes<HTMLD
   )
 }
 
+export function DialogContent({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div className={cn("space-y-4", className)} {...props} />
+  )
+}
+
 export function DialogTitle({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>) {
   return (
     <h2 className={cn("text-lg font-semibold leading-none tracking-tight", className)} {...props} />
