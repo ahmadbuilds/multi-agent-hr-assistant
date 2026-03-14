@@ -1090,19 +1090,6 @@ For issues, questions, or suggestions:
 
 ---
 
-## 🗺️ Roadmap
-
-- [ ] Advanced caching strategies
-- [ ] Multi-language support
-- [ ] Analytics dashboard
-- [ ] Mobile app support
-- [ ] Advanced HITL workflows
-- [ ] A/B testing framework
-- [ ] Performance monitoring
-- [ ] ML model versioning
-
----
-
 **Built with ❤️ using LangChain, FastAPI, and AI**
 
 Last Updated: March 15, 2026
