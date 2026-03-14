@@ -134,7 +134,7 @@ Query → Intent Classification → Task Decomposition →
 Agent Selection → Execute Agents → Response Synthesis
 ```
 
-[View Supervisor Agent Graph](./src/multi-agent-hr-assistant/pics/supervisor_agent_graph.png)
+![Supervisor Agent Graph](./src/multi-agent-hr-assistant/pics/supervisor_agent_graph.png)
 
 ---
 
@@ -170,7 +170,7 @@ Task Classification → Validation → Execute Tool →
 Response Generation → Human Approval (if needed) → Final Response
 ```
 
-[View Clerk Agent Graph](./src/multi-agent-hr-assistant/pics/clerk_agent_graph.png)
+![Clerk Agent Graph](./src/multi-agent-hr-assistant/pics/clerk_agent_graph.png)
 
 ---
 
@@ -207,7 +207,7 @@ Query → Embedding → Vector Search → Policy Retrieval →
 Context Augmentation → Response Generation
 ```
 
-[View Librarian Agent Graph](./src/multi-agent-hr-assistant/pics/librarian_agent_graph.png)
+![Librarian Agent Graph](./src/multi-agent-hr-assistant/pics/librarian_agent_graph.png)
 
 ---
 
