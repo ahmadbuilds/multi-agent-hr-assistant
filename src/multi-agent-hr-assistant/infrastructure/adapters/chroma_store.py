@@ -35,7 +35,7 @@ class ChromaVectorStore(VectorStorePort):
             if result and "metadatas" in result and result["metadatas"]:
                 chunk_hashes = [metadata.get("chunk_hash") for metadata in result["metadatas"] if "chunk_hash" in metadata]
                 return chunk_hashes
-            
+            return []
         except Exception as e:
             print(f"Error fetching existing chunk hashes: {e}")
             return []
