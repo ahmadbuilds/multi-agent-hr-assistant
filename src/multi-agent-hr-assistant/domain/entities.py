@@ -1,5 +1,5 @@
 from pydantic import BaseModel,Field
-from domain.intents import IntentType, LibrarianActionType,TicketType,TicketStatusType,ClerkActionType,AgentName
+from domain.intents import IntentType, LibrarianActionType,TicketType,AgentName
 from typing import Optional,Literal, Union,TypeAlias
 #pydantic model to represent user query
 class UserQuery(BaseModel):
@@ -8,6 +8,8 @@ class UserQuery(BaseModel):
     isAdmin:Optional[bool]=Field(description="boolean flag to indicate the Manipulation of Policy Documents", default=None)
     conversation_id:str=Field(description="unique identifier for the conversation, used for maintaining context across interactions")
     user_id:Optional[str]=Field(description="unique identifier for the user, used for maintaining context and state across interactions",default=None)
+    attachment_url:Optional[str]=Field(description="optional attachment URL associated with the user message", default=None)
+    attachment_name:Optional[str]=Field(description="optional attachment name associated with the user message", default=None)
     auth_token:str=Field(description="authentication token for the user, used to verify identity and fetch user details")
 
 #pydantic model for Supervisor Structured Output
@@ -27,7 +29,7 @@ class TicketCreation(BaseModel):
 #pydantic models for Clerk Classification
 class TicketCreationClassification(BaseModel):
     action:Literal["ticket_creation"]=Field(description="action type for ticket creation")
-    details:TicketCreation=Field(description="details of the ticket to be created")
+    details:Optional[TicketCreation]=Field(description="details of the ticket to be created, null at classification stage and populated by the Inner Model Node",default=None)
 
 class GetBalanceClassification(BaseModel):
     action:Literal["get_balance"]=Field(description="action type for getting balance")
