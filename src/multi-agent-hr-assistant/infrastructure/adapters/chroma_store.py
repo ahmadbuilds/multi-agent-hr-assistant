@@ -16,7 +16,7 @@ class ChromaVectorStore(VectorStorePort):
             bool: True if upserting is successful, False otherwise
         """
         try:
-            self.vector_store.add_texts(documents=chunks, metadatas=metadata, ids=ids)
+            self.vector_store.add_texts(texts=chunks, metadatas=metadata, ids=ids)
             return True
         except Exception as e:
             print(f"Error upserting embeddings: {e}")
@@ -31,7 +31,7 @@ class ChromaVectorStore(VectorStorePort):
             list: List of existing chunk hashes for the given document hash
         """
         try:
-            result = self.vector_store.get(where={"document_hash":document_hash},include=["metadatas","ids","documents","embeddings"])
+            result = self.vector_store.get(where={"document_hash":document_hash},include=["metadatas","documents"])
             if result and "metadatas" in result and result["metadatas"]:
                 chunk_hashes = [metadata.get("chunk_hash") for metadata in result["metadatas"] if "chunk_hash" in metadata]
                 return chunk_hashes
@@ -49,7 +49,7 @@ class ChromaVectorStore(VectorStorePort):
             bool: True if deletion is successful, False otherwise
         """
         try:
-            result = self.vector_store.get(where={"chunk_hash": chunk_hash},include=["metadatas","ids","documents","embeddings"])
+            result = self.vector_store.get(where={"chunk_hash": chunk_hash},include=["metadatas","documents"])
             if result and "ids" in result and result["ids"]:
                 ids_to_delete = result["ids"]
                 self.vector_store.delete(ids=ids_to_delete)
