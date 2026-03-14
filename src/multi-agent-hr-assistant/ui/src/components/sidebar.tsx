@@ -26,13 +26,9 @@ export function Sidebar({ chats: initialChats }: { chats: ChatListItem[] }) {
   const [hasMore, setHasMore] = useState(true)
   const scrollRef = useRef<HTMLDivElement>(null)
 
-  // Sync state with server-updated props (e.g. after router.refresh())
   useEffect(() => {
     setChats(initialChats)
     setOffset(initialChats.length) 
-    // Resetting offset/hasMore might be needed if the refresh resets the view, 
-    // but usually just updating the list is what's expected.
-    // Ideally we merge, but for now strict sync ensures the new chat shows up.
   }, [initialChats])
 
   const handleLogout = async () => {
