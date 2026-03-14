@@ -1,15 +1,12 @@
 "use server"
 
+import { revalidatePath } from 'next/cache'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
-// Helper to create server client
 async function createClient() {
   const cookieStore = await cookies()
 
-  // Keep an in-memory map so that setAll mutations are visible to subsequent
-  // getAll calls within the same request (cookieStore may not reflect .set()
-  // changes immediately, which causes auth.uid() to be null in PostgREST).
   const cookieMap = new Map(
     cookieStore.getAll().map((c) => [c.name, c.value])
   )
@@ -29,9 +26,6 @@ async function createClient() {
               cookieStore.set(name, value, options)
             })
           } catch {
-            // The `set` method was called from a Server Component.
-            // This can be ignored if you have middleware refreshing
-            // user sessions.
           }
         },
       },
@@ -55,9 +49,7 @@ export async function getChats(offset: number = 0, limit: number = 20) {
   return data || []
 }
 
-import { revalidatePath } from 'next/cache'
 
-// ... imports
 
 export async function createChat(firstMessage: string, attachmentUrl?: string, attachmentName?: string) {
   const supabase = await createClient()
@@ -79,8 +71,6 @@ export async function createChat(firstMessage: string, attachmentUrl?: string, a
 
 export async function sendMessage(chatId: string, content: string, type: 'user' | 'ai' = 'user', attachmentUrl?: string, attachmentName?: string) {
   const supabase = await createClient()
-  // Must call getUser() first so @supabase/ssr initialises the session JWT
-  // into the client. Without this, auth.uid() is null in RLS and inserts fail.
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error("Unauthorized")
   const { error } = await supabase.from('messages').insert({
