@@ -5,7 +5,7 @@ from infrastructure.adapters.librarian_retrieval_adapter import LibrarianRetriev
 from infrastructure.adapters.librarian_insertion_adapter import LibrarianInsertionAdapter
 from infrastructure.adapters.librarian_updation_adapter import LibrarianUpdateAdapter
 from application.agents.librarian import LibrarianAgent
-from infrastructure.redis.redis_client import save_agent_state_for_final_response
+from infrastructure.redis.redis_client import get_agent_state_for_final_response, save_agent_state_for_final_response
 from domain.entities import AgentState
 from application.services.ingestion import IngestionService
 from infrastructure.adapters.chroma_store import ChromaVectorStore
@@ -22,7 +22,7 @@ class SupervisorLibrarianGraphExecutor(LibrarianGraphExecutionPort):
         self.librarian_state=state
 
     #Method to execute the Librarian Agent State Graph
-    def execute_librarian_agent_graph(self)->bool:
+    async def execute_librarian_agent_graph(self)->bool:
         agent_state=None
         try:
             llm_model=create_model_instance("llama-3.3-70b-versatile")
@@ -53,9 +53,16 @@ class SupervisorLibrarianGraphExecutor(LibrarianGraphExecutionPort):
             save_agent_state_for_final_response(agent_state)
 
             #Executing the Librarian Agent Graph
-            librarian_graph.invoke(self.librarian_state)
+            await librarian_graph.ainvoke(self.librarian_state)
 
-            agent_state.state["status"]="completed"
+            existing=get_agent_state_for_final_response(
+                self.librarian_state.user_query.user_id,
+                self.librarian_state.user_query.conversation_id,
+                "Librarian"
+            )
+            
+            agent_state.state={ **existing,"status":"completed"}
+            
             save_agent_state_for_final_response(agent_state)
 
             return True

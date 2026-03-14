@@ -4,7 +4,7 @@ from application.agents.clerk import ClerkAgent
 from infrastructure.llm_providers.groq_provider import create_model_instance
 from infrastructure.adapters.clerk_leave_balance_adapter import ClerkLeaveBalanceAdapter
 from infrastructure.adapters.clerk_ticket_creation_adapter import ClerkTicketCreationAdapter
-from infrastructure.redis.redis_client import save_agent_state_for_final_response
+from infrastructure.redis.redis_client import get_agent_state_for_final_response, save_agent_state_for_final_response
 from domain.entities import AgentState
 class SupervisorClerkGraphExecutor(ClerkGraphExecutionPort):
     def __init__(self,state:ClerkState):
@@ -15,7 +15,7 @@ class SupervisorClerkGraphExecutor(ClerkGraphExecutionPort):
     def update_clerk_state(self,state:ClerkState):
         self.clerk_state=state
     #Method to execute the Clerk Agent State Graph
-    def execute_clerk_agent_graph(self)->bool:
+    async def execute_clerk_agent_graph(self)->bool:
         agent_state=None
         try:
             llm_model=create_model_instance("openai/gpt-oss-20b")
@@ -45,9 +45,14 @@ class SupervisorClerkGraphExecutor(ClerkGraphExecutionPort):
             save_agent_state_for_final_response(agent_state)
 
             #Executing the Clerk Agent Graph
-            clerk_graph.invoke(self.clerk_state)
+            await clerk_graph.ainvoke(self.clerk_state)
 
-            agent_state.state["status"]="completed"
+            existing = get_agent_state_for_final_response(
+                self.clerk_state.user_query.user_id,
+                self.clerk_state.user_query.conversation_id,
+                "Clerk"
+            )
+            agent_state.state = {**existing, "status": "completed"}
             save_agent_state_for_final_response(agent_state)
 
             return True
