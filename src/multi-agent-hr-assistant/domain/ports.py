@@ -31,7 +31,7 @@ class TicketCreationPort(ABC):
 
 class ClerkGraphExecutionPort(ABC):
     @abstractmethod
-    def execute_clerk_agent_graph(self,state:ClerkState)->bool:
+    async def execute_clerk_agent_graph(self,state:ClerkState)->bool:
         """
         Method to execute the Clerk Agent State Graph
         Args:
@@ -43,7 +43,7 @@ class ClerkGraphExecutionPort(ABC):
 
 class LibrarianGraphExecutionPort(ABC):
     @abstractmethod
-    def execute_librarian_agent_graph(self,state:LibrarianState)->bool:
+    async def execute_librarian_agent_graph(self,state:LibrarianState)->bool:
         """
         Method to execute the Librarian Agent State Graph
         Args:
@@ -120,6 +120,26 @@ class DocumentStorePort(ABC):
             document_id (str): Unique identifier of the document
         Returns:
             bool: True if deletion is successful, False otherwise
+        """
+        pass
+
+    @abstractmethod
+    def save_document_version_name(self,updated_name:str)->bool:
+        """
+        Method to save the version name of a document
+        Args:
+            updated_name (str): Updated version name of the document to be saved
+        Returns:
+            bool: True if saving is successful, False otherwise
+        """
+        pass
+
+    @abstractmethod
+    def get_document_version_name(self)->str:
+        """
+        Method to get the version name of a document
+        Returns:
+            str: Version name of the document
         """
         pass
 
