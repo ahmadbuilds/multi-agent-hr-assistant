@@ -1,0 +1,34 @@
+# Test Dependencies for Multi-Agent HR Assistant
+
+# Testing Framework
+pytest>=7.0.0
+pytest-asyncio>=0.20.0
+pytest-cov>=4.0.0
+pytest-mock>=3.9.0
+pytest-timeout>=2.1.0
+pytest-xdist>=3.0.0  # For parallel test execution
+
+# Code Quality
+pytest-testdox>=3.0.0  # Detailed test reporting
+pytest-watch>=4.2.0    # Watch mode for auto-rerun
+
+# Mocking & Fixtures
+responses>=0.22.0      # Mock HTTP responses
+faker>=15.0.0          # Generate fake data
+
+# Async Testing
+asyncio>=3.4.3
+
+# Reporting
+pytest-html>=3.1.0     # HTML test reports
+coverage>=6.5.0        # Code coverage
+
+# HTTP Testing
+httpx>=0.23.0          # For async HTTP testing with FastAPI
+
+# JSON/YAML
+pyyaml>=6.0            # YAML parsing for config
+
+# Type Checking (optional but recommended)
+mypy>=0.990
+types-requests>=2.28.0
