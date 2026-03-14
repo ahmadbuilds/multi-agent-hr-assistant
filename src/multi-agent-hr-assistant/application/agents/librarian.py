@@ -1,237 +1,300 @@
-from langchain_core.messages import BaseMessage,HumanMessage,AIMessage
+from langchain_core.messages import AIMessage
 from domain.ports import LibrarianRetrievalPort, LibrarianInsertionPort, LibrarianUpdatePort
-from domain.entities import LibrarianTaskIntent
+from domain.entities import LibrarianTask
 from application.states import LibrarianState
 from domain.tools.librarian_tool import make_librarian_retrieval_tool, make_librarian_insertion_tool, make_librarian_update_tool
 from langchain_core.language_models.chat_models import BaseChatModel
 try:
-    from IPython.display import Image,display
+    from IPython.display import Image, display
 except ImportError:
-    Image=None
-    display=None
-from langgraph.graph import START,END,StateGraph
-from domain.prompts.librarian_prompt import librarianPrompt,LibrarianFinalResponsePrompt
-from typing import Literal
-from infrastructure.redis.redis_client import publish_event, save_agent_state_for_final_response,get_agent_state_for_final_response,save_agent_state_for_hitl_intervention
+    Image = None
+    display = None
+from langgraph.graph import START, END, StateGraph
+from domain.prompts.librarian_prompt import librarianPrompt, LibrarianFinalResponsePrompt
+from infrastructure.redis.redis_client import (
+    save_agent_state_for_final_response,
+    get_agent_state_for_final_response,
+    save_agent_state_for_hitl_intervention,
+)
 from domain.entities import AgentState
+from infrastructure.redis.redis_config import get_async_redis_client
+from infrastructure.socket.socket_manager import broadcast_hitl_event
 import json
-from infrastructure.redis.redis_config import get_redis_client
+
+#Librarian Agent Implementation
 class LibrarianAgent:
-    def __init__(self,llm_model:BaseChatModel,retrieval_port:LibrarianRetrievalPort,insertion_port:LibrarianInsertionPort,update_port:LibrarianUpdatePort):
+    def __init__(
+        self,
+        llm_model: BaseChatModel,
+        retrieval_port: LibrarianRetrievalPort,
+        insertion_port: LibrarianInsertionPort,
+        update_port: LibrarianUpdatePort,
+    ):
         self.llm_model = llm_model
         self.retrieval_tool = make_librarian_retrieval_tool(retrieval_port)
         self.insertion_tool = make_librarian_insertion_tool(insertion_port)
         self.update_tool = make_librarian_update_tool(update_port)
 
-    def librarian_model_node(self,state:LibrarianState)->dict:
+    #Librarian model node takes the user's query and classifies it into one or more tasks for the agent to execute.
+    def librarian_model_node(self, state: LibrarianState) -> dict:
         """
-        method for classifying task into multiple intent based on the user query present in the librarian state
-        Args:
-            state (LibrarianState): Current state of the Librarian Agent
-        Returns:
-            dict: Updated state of the Librarian Agent after processing the model node
+        Classifies the user request into one or more LibrarianTask objects by
+        invoking the LLM with the librarian prompt and parsing the JSON reply.
         """
         try:
-            formatted_prompt=librarianPrompt.format_messages(
+            formatted_prompt = librarianPrompt.format_messages(
                 user_query=state.user_query.query,
                 isAdmin=state.user_query.isAdmin,
                 UploadedText=state.user_query.UploadedText,
             )
-            structured_llm_response=self.llm_model.with_structured_output(LibrarianTaskIntent)
-            response=structured_llm_response.invoke(formatted_prompt+list(state.messages))
-            return{
-                "messages":[AIMessage(content=response.model_dump_json())],
-                "action":response.task
+
+            response = self.llm_model.invoke(list(state.messages) + formatted_prompt)
+
+            raw = response.content.strip()
+            if raw.startswith("```"):
+                lines = [l for l in raw.split("\n") if not l.strip().startswith("```")]
+                raw = "\n".join(lines).strip()
+
+            parsed = json.loads(raw)
+
+            if isinstance(parsed, dict):
+                parsed = [parsed]
+
+            tasks = [LibrarianTask(**t) for t in parsed]
+
+            return {
+                "messages": [AIMessage(content=response.content)],
+                "action": tasks,
             }
         except Exception as e:
-            print("Error in Librarian Model Node:", str(e))
+            print(f"[Librarian] Model node error: {type(e).__name__}: {e}")
             return {}
 
-    def librarian_decision_node(self,state:LibrarianState)->dict:
+    #Librarian decision node routes to the tool execution node, hitl node, or final response node 
+    # based on the current state of the agent.
+    def librarian_decision_node(self, state: LibrarianState) -> dict:
         """
-        method for deciding the next step for the Librarian Agent based on the identified intent
-        Args:
-            state (LibrarianState): Current state of the Librarian Agent
-        Returns:
-            dict: Dictionary with next_step
+        Routes to hitl, tool_node, or final_response based on current state.
         """
         if state.hitl_state:
-            next_step="hitl"
-        elif any(task.status=="pending" for task in state.action):
-            next_step="tool_node"
+            next_step = "hitl"
+        elif any(task.status == "pending" for task in state.action):
+            next_step = "tool_node"
         else:
-            next_step="final_response"
+            next_step = "final_response"
         return {"next_step": next_step}
-    
-    def librarian_tool_execution_node(self,state:LibrarianState)->dict:
+
+    #Librarian tool execution node executes the next pending task using the appropriate tool. 
+    # For update_policy tasks, it pushes the task to hitl_state so the decision node can route to the HITL node before carrying out the update.
+    def librarian_tool_execution_node(self, state: LibrarianState) -> dict:
         """
-        method for executing the identified tasks using the appropriate tools and updating the state of the Librarian Agent based on the results of the tool execution
-        Args:
-            state (LibrarianState): Current state of the Librarian Agent
-        Returns:
-            dict: Updated state of the Librarian Agent after executing the identified tasks using the appropriate tools and updating the state of the Librarian Agent based on the results of the tool execution
+        Executes the next pending LibrarianTask using the appropriate tool.
+        For update_policy the task is pushed to hitl_state so the decision
+        node can route to the HITL node before the update is carried out.
         """
         try:
             updated_actions = [task.model_copy() for task in state.action]
             pending_task = next((t for t in updated_actions if t.status == "pending"), None)
-            
+
             if not pending_task:
                 return {}
-            
-            if pending_task.action=="update_document":
+
+            if pending_task.action == "update_policy":
                 if pending_task.hitl_response is None:
-                    pending_task.result="This task requires human intervention. Please confirm if you want to proceed with updating the document based on the provided query."
-                    pending_task.status="waiting_for_human"
-                    return{
-                        "messages":[AIMessage(content=pending_task.result)],
-                        "action":updated_actions
+                    pending_task.status = "waiting_for_human"
+                    
+                    updated_hitl = list(state.hitl_state) + [pending_task]
+                    return {
+                        "messages": [AIMessage(
+                            content="This task requires human confirmation before updating the policy document."
+                        )],
+                        "action": updated_actions,
+                        "hitl_state": updated_hitl,
                     }
+
                 
-                if pending_task.hitl_response:
-                    update_result=self.update_tool.invoke({"document_content": pending_task.query})
-                    if update_result:
-                        pending_task.result="Document updated successfully."
-                    else:
-                        pending_task.result="Failed to update the document."
+                if pending_task.hitl_response is True:
+                    
+                    document_content = state.user_query.UploadedText or pending_task.query
+                    update_result = self.update_tool.invoke({"document_content": document_content})
+                    pending_task.result = (
+                        "Policy document updated successfully."
+                        if update_result
+                        else "Failed to update the policy document."
+                    )
                 else:
-                    pending_task.result="Document update cancelled by the user."
-                
-                pending_task.status="completed"
+                    pending_task.result = "Policy update cancelled by the user."
 
-            elif pending_task.action=="delete_policy":
-                #simply tell user to use the update method instead of deleting 
-                pending_task.result="To delete a policy, please update the policy document with the necessary changes instead of deleting it entirely. This way we can maintain a record of all policies and their updates."
-                pending_task.status="completed"
-                
-            elif pending_task.action=="retrieve_document":
-                retrieval_results=self.retrieval_tool.invoke({"query": pending_task.query})
-                pending_task.result=f"Retrieved the following documents based on the query: {retrieval_results}"
-                pending_task.status="completed"
-                
-            elif pending_task.action=="insert_document":
-                insertion_result = self.insertion_tool.invoke({"document_content": pending_task.query})
-                pending_task.result = "Inserted successfully." if insertion_result else "Insertion failed."
                 pending_task.status = "completed"
-            
 
-            return{
-                "messages":[AIMessage(content=pending_task.result)],
-                "action":updated_actions
+            elif pending_task.action == "delete_policy":
+                
+                pending_task.result = (
+                    "To remove a policy, please upload an updated version of the document "
+                    "with the necessary changes. This preserves a full audit trail."
+                )
+                pending_task.status = "completed"
+
+            elif pending_task.action == "retrieve_policy": 
+                retrieval_results = self.retrieval_tool.invoke({"query": pending_task.query})
+                pending_task.result = f"Retrieved the following documents based on the query: {retrieval_results}"
+                pending_task.status = "completed"
+
+            elif pending_task.action == "upload_policy":   
+                document_content = state.user_query.UploadedText or pending_task.query
+                insertion_result = self.insertion_tool.invoke({"document_content": document_content})
+                pending_task.result = "Policy uploaded successfully." if insertion_result else "Policy upload failed."
+                pending_task.status = "completed"
+
+            return {
+                "messages": [AIMessage(content=pending_task.result)],
+                "action": updated_actions,
             }
+
         except Exception as e:
-            print("Error in Librarian Tool Execution Node:", str(e))
-            return {"messages":[AIMessage(content="Error executing the task using the tool. Please try again later."+str(e))]}
+            print(f"[Librarian] Tool execution error: {type(e).__name__}: {e}")
+            return {
+                "messages": [AIMessage(
+                    content=f"Error executing the task using the tool. Please try again later. {e}"
+                )]
+            }
 
-
-    def librarian_hitl_node(self,state:LibrarianState)->dict:
+    # HITL node broadcasts the HITL task details to the frontend, 
+    # waits for the user's response on a Redis pub/sub channel,
+    # then updates the agent's state with the response to resume task execution.
+    async def librarian_hitl_node(self, state: LibrarianState) -> dict:
         """
-        method for handling human intervention for tasks that require human intervention in the Librarian Agent and updating the state of the Librarian Agent based on the user's response for the HITL task
-        args:
-            state (LibrarianState): Current state of the Librarian Agent
-        returns:
-            dict: Updated state of the Librarian Agent after handling human intervention for tasks that require human intervention and updating the state of the Librarian Agent based on the user's response for the HITL task
+        Broadcasts a HITL event over WebSocket, then waits on the async
+        Redis pub/sub channel for the user's approval or rejection before
+        returning control to the tool execution node.
         """
-        try:
-            user_id=state.user_query.user_id
-            conversation_id=state.user_query.conversation_id
+        user_id = state.user_query.user_id
+        conversation_id = state.user_query.conversation_id
 
-            hitl_task=state.hitl_state.pop()
+        hitl_state_list = list(state.hitl_state)
+        hitl_task: LibrarianTask = hitl_state_list.pop(0)
 
-            publish_event(channel=f"HITL_Intervention_Channel:{user_id}:{conversation_id}:Librarian", event_data={
-                "user_id": user_id,
-                "conversation_id": conversation_id,
-                "agent":"Librarian",
-                "action": hitl_task.model_dump_json(),
-            })
+        event_payload = {
+            "user_id": user_id,
+            "conversation_id": conversation_id,
+            "agent": "Librarian",
+            "hitl_task": hitl_task.model_dump(),
+        }
 
-            #saving the librarian state to redis for retrieval when the user responds to the HITL prompt
-            save_agent_state_for_hitl_intervention(AgentState(
+        save_agent_state_for_hitl_intervention(
+            AgentState(
                 user_id=user_id,
                 key=conversation_id,
                 agent_name="Librarian",
-                state={"hitl_task":hitl_task.model_dump()}
-            ))
+                state={"hitl_task": hitl_task.model_dump()},
+            )
+        )
 
-            redis=get_redis_client()
-            pubsub = redis.pubsub()
+        await broadcast_hitl_event(
+            user_id=user_id,
+            conversation_id=conversation_id,
+            agent_name="Librarian",
+            event_data=event_payload,
+        )
 
-            pubsub.subscribe(f"HITL_Response_Channel:{user_id}:{conversation_id}:Librarian")
 
-            for message in pubsub.listen():
+        redis = get_async_redis_client()
+        pubsub = redis.pubsub()
+        response_channel = f"HITL_Response_Channel:{user_id}:{conversation_id}:Librarian"
+        await pubsub.subscribe(response_channel)
+
+        result: dict = {}
+        try:
+            async for message in pubsub.listen():
                 if message["type"] == "message":
                     response_payload = json.loads(message["data"])
 
-                    pubsub.unsubscribe(f"HITL_Response_Channel:{user_id}:{conversation_id}:Librarian")
+                    await pubsub.unsubscribe(response_channel)
 
                     updated_actions = [task.model_copy() for task in state.action]
-                    pending_task = next((t for t in updated_actions if t.status == "pending"), None)
-            
-                    if not pending_task:
-                        return {}
-                    pending_task.hitl_response = response_payload.get("detail",pending_task.hitl_response)
-                    pending_task.status = "pending"  # Set back to pending for re-evaluation in the decision node
-                    return{
-                        "messages":[AIMessage(content=f"Received user response for HITL task: {pending_task.hitl_response}. Re-evaluating the task based on the user's response.")],
-                        "action":updated_actions
-                    }
-        except Exception as e:
-            print("Error in Librarian HITL Node:", str(e))
-            return {"messages":[AIMessage(content="Error handling human intervention for the task. Please try again later."+str(e))]}
-    
-    #librarian final response node to generate the final response for the user after all tasks have been executed and there are no tasks requiring human intervention
-    def librarian_final_response_node(self,state:LibrarianState)->dict:
-        """
-        method for generating the final response for the user after all tasks have been executed and there are no tasks requiring human intervention in the Librarian Agent
-        args:
-            state (LibrarianState): Current state of the Librarian Agent
-        returns:
-            dict: Updated state of the Librarian Agent after generating the final response for the user
-        """
-        formatted_prompt=LibrarianFinalResponsePrompt.format_messages(
-            user_query=state.user_query.query,
-            task_results=list(state.action),
-        )
-        counter=3
-        while counter>0:
-            try:
-                response=self.llm_model.invoke(formatted_prompt+list(state.messages))
-                user_id=state.user_query.user_id
-                conversation_id=state.user_query.conversation_id
+                    pending_task = next(
+                        (t for t in updated_actions if t.status == "waiting_for_human"), None
+                    )
 
-                existing=get_agent_state_for_final_response(user_id, conversation_id, "Librarian")
-                agent_state=AgentState(
+                    if not pending_task:
+                        result = {
+                            "hitl_state": hitl_state_list,
+                            "messages": [AIMessage(content="HITL error: no waiting task found.")],
+                        }
+                    else:
+                        raw_response = response_payload.get("detail", response_payload.get("approved", None))
+                        if isinstance(raw_response, str):
+                            pending_task.hitl_response = raw_response.strip().lower() in ("approve", "approved", "true", "yes")
+                        elif isinstance(raw_response, bool):
+                            pending_task.hitl_response = raw_response
+                        else:
+                            pending_task.hitl_response = False
+
+                        pending_task.status = "pending"
+                        result = {
+                            "action": updated_actions,
+                            "hitl_state": hitl_state_list,
+                            "messages": [AIMessage(
+                                content=f"Received user response for HITL task: {pending_task.hitl_response}. "
+                                        "Re-evaluating the task based on the user's response."
+                            )],
+                        }
+                    break
+        finally:
+            await pubsub.aclose()
+            await redis.aclose()
+
+        return result
+
+    # The final response node generates the final response to the user after all tasks have been executed.
+    def librarian_final_response_node(self, state: LibrarianState) -> dict:
+        """
+        Generates the final user-facing response after all tasks are complete.
+        """
+        formatted_prompt = LibrarianFinalResponsePrompt.format_messages(
+            user_query=state.user_query.query,
+            tasks=list(state.action),
+        )
+        counter = 3
+        while counter > 0:
+            try:
+                response = self.llm_model.invoke(list(state.messages) + formatted_prompt)
+
+                user_id = state.user_query.user_id
+                conversation_id = state.user_query.conversation_id
+
+                existing = get_agent_state_for_final_response(user_id, conversation_id, "Librarian")
+                agent_state = AgentState(
                     user_id=user_id,
                     key=conversation_id,
                     agent_name="Librarian",
                     state={
-                        **existing,
-                        "status":"completed",
-                        "final_response":response.content,
-                    }
+                        **(existing or {}),
+                        "status": "completed",
+                        "final_response": response.content,
+                    },
                 )
                 save_agent_state_for_final_response(agent_state)
+
                 return {
-                    "messages":[AIMessage(content=response.content)],
-                    "response":response.content,
+                    "messages": [AIMessage(content=response.content)],
+                    "response": response.content,
                 }
             except Exception as e:
-                print("Error in Librarian Final Response Node:", str(e),"Retrying...")
-                counter-=1
-        print("Failed to generate final response after multiple attempts.")
+                print(f"[Librarian] Final response error: {type(e).__name__}: {e}. Retrying…")
+                counter -= 1
+
+        print("[Librarian] Failed to generate final response after multiple attempts.")
         return {
-            "messages":[AIMessage(content="Sorry, I am unable to generate a response at the moment.")],
+            "messages": [AIMessage(content="Sorry, I am unable to generate a response at the moment.")],
         }
 
-    #function to create the Librarian Agent State Graph
-    def create_librarian_agent_graph(self)->StateGraph:
+    
+    def create_librarian_agent_graph(self) -> StateGraph:
         """
-        method for creating the state graph for the Librarian Agent
-        args:
-            None
-        returns:
-            StateGraph: State graph for the Librarian Agent containing the model node, decision node, tool execution node, HITL node and final response node
+        Builds and compiles the Librarian Agent state graph.
         """
-        librarian_graph=StateGraph(LibrarianState)
+        librarian_graph = StateGraph(LibrarianState)
         librarian_graph.add_node("model_node", self.librarian_model_node)
         librarian_graph.add_node("decision_node", self.librarian_decision_node)
         librarian_graph.add_node("tool_node", self.librarian_tool_execution_node)
@@ -241,24 +304,21 @@ class LibrarianAgent:
         librarian_graph.add_edge(START, "model_node")
         librarian_graph.add_edge("model_node", "decision_node")
         librarian_graph.add_conditional_edges(
-            "decision_node", 
+            "decision_node",
             lambda state: state.next_step,
             {
                 "tool_node": "tool_node",
                 "hitl": "hitl_node",
-                "final_response": "final_response"
-            }    
+                "final_response": "final_response",
+            },
         )
         librarian_graph.add_edge("tool_node", "decision_node")
         librarian_graph.add_edge("hitl_node", "tool_node")
         librarian_graph.add_edge("final_response", END)
         return librarian_graph.compile()
-    #function to display the Librarian agent graph
-    def display_librarian_agent_graph(self,agent:StateGraph):
-        png_bytes =agent.get_graph(xray=True).draw_mermaid_png()
 
-         # Save to file
+    def display_librarian_agent_graph(self, agent: StateGraph):
+        png_bytes = agent.get_graph(xray=True).draw_mermaid_png()
         with open("librarian_agent_graph.png", "wb") as f:
             f.write(png_bytes)
-
         display(Image(png_bytes))
