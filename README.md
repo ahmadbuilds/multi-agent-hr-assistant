@@ -42,66 +42,11 @@ The Multi-Agent HR Assistant is an intelligent system that helps HR departments 
 
 ### High-Level System Architecture
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Frontend (Next.js)                        │
-│              (React, TypeScript, Tailwind CSS)               │
-└────────────────────┬────────────────────────────────────────┘
-                     │ HTTP/WebSocket
-                     ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    FastAPI Backend                           │
-│  ┌──────────────────────────────────────────────────────┐   │
-│  │  API Endpoints & WebSocket Gateway                  │   │
-│  │  - /process_query                                   │   │
-│  │  - /leave_balance                                   │   │
-│  │  - /ticket_creation                                 │   │
-│  │  - /get_chat_history                                │   │
-│  └──────────────────────────────────────────────────────┘   │
-│                     │                                         │
-│        ┌────────────┼────────────┐                            │
-│        ▼            ▼            ▼                            │
-│  ┌─────────────────────────────────────┐                    │
-│  │    Multi-Agent Workflow System      │                    │
-│  │  (LangGraph State Management)       │                    │
-│  └─────────────────────────────────────┘                    │
-└─────────────────────────────────────────────────────────────┘
-        │              │              │
-        ▼              ▼              ▼
-  ┌──────────┐  ┌───────────┐  ┌──────────────┐
-  │Supabase  │  │Redis      │  │Chroma Vector │
-  │(Auth DB) │  │(Cache)    │  │Store (Docs)  │
-  └──────────┘  └───────────┘  └──────────────┘
-```
+![High-Level System Architecture](./src/multi-agent-hr-assistant/pics/Complete%20System%20Architecture.png)
 
 ### Multi-Agent Workflow
 
-```
-User Query
-    │
-    ▼
-┌─────────────────────────────────────┐
-│    SUPERVISOR AGENT                  │
-│  - Understands user intent           │
-│  - Decomposes complex queries        │
-│  - Routes to appropriate agents      │
-│  - Synthesizes final response        │
-└─────────────────────────────────────┘
-    │
-    ├──────────────┬──────────────┐
-    ▼              ▼              ▼
-┌─────────┐  ┌──────────────┐  ┌──────────╧──────────┐
-│ CLERK   │  │ LIBRARIAN    │  │ GENERAL HANDLING    │
-│ AGENT   │  │ AGENT        │  │ (Supervisor Only)   │
-└────┬────┘  └──────┬───────┘  └─────────────────────┘
-     │              │
-     ├──────┬───────┤
-     ▼      ▼       ▼
-   • Leave Balance    • Policy Retrieval
-   • Ticket Creation  • Policy Updates
-   • Leave Request    • Policy Management
-   • General Info
-```
+![Multi-Agent Workflow Architecture](./src/multi-agent-hr-assistant/pics/Complete%20Agent%20Architecture.png)
 
 ---
 
@@ -1087,4 +1032,3 @@ For issues, questions, or suggestions:
 - Open an GitHub Issue
 - Check existing documentation
 - Review troubleshooting section
-
