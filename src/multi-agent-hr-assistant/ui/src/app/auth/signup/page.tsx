@@ -34,7 +34,6 @@ export default function SignupPage() {
     }
 
     try {
-      // 1. Sign up user
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
@@ -56,7 +55,6 @@ export default function SignupPage() {
          return
       }
 
-      // If we *do* have a session (auto-confirm enabled), proceeds as normal
       if (authData.user) {
         router.push("/dashboard")
         router.refresh()
