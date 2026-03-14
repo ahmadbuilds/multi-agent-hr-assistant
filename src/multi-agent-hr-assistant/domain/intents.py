@@ -8,6 +8,9 @@ IntentType=Literal[
     "General_Chat",
 ]
 
+
+SUPERVISOR_ONLY_INTENTS: set[str] = {"Clarification", "General_Chat"}
+
 AgentName=Literal[
     "Supervisor",
     "Librarian",
