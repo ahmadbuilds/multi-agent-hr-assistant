@@ -1,29 +1,8 @@
-# 🤖 Multi-Agent HR Assistant
+# Multi-Agent HR Assistant
 
 A sophisticated multi-agent AI system designed to handle HR operations through intelligent agents that specialize in different domains. Built with LangChain, LangGraph, FastAPI, and powered by Groq's LLM models.
 
-## 📋 Table of Contents
-
-- [Overview](#overview)
-- [Architecture](#architecture)
-- [Features](#features)
-- [Prerequisites](#prerequisites)
-- [Installation](#installation)
-- [Quick Start](#quick-start)
-- [Configuration](#configuration)
-- [Running the Project](#running-the-project)
-- [API Documentation](#api-documentation)
-- [Project Structure](#project-structure)
-- [Agent Systems](#agent-systems)
-- [Development](#development)
-- [Testing](#testing)
-- [Docker Deployment](#docker-deployment)
-- [Troubleshooting](#troubleshooting)
-- [Contributing](#contributing)
-
----
-
-## 🎯 Overview
+## Overview
 
 The Multi-Agent HR Assistant is an intelligent system that helps HR departments manage employee queries, leave requests, policy documentation, and support tickets. The system uses specialized AI agents that work together to understand user intent and provide appropriate responses.
 
@@ -38,7 +17,7 @@ The Multi-Agent HR Assistant is an intelligent system that helps HR departments 
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 ### High-Level System Architecture
 
@@ -50,7 +29,7 @@ The Multi-Agent HR Assistant is an intelligent system that helps HR departments 
 
 ---
 
-## 🤖 Agent Systems
+## Agent Systems
 
 ### 1. **Supervisor Agent**
 
@@ -156,30 +135,30 @@ Context Augmentation → Response Generation
 
 ---
 
-## ✨ Features
+## Features
 
 ### Core Features
 
-- ✅ **Multi-Agent Orchestration** - LangGraph-based workflow system
-- ✅ **Real-time Communication** - WebSocket support for live updates
-- ✅ **Vector Search** - Semantic search for policy retrieval
-- ✅ **Chat History** - Persistent conversation tracking
-- ✅ **User Authentication** - Supabase integration
-- ✅ **File Upload Support** - Document ingestion for policies
-- ✅ **Admin Dashboard** - Policy management interface
+- **Multi-Agent Orchestration** - LangGraph-based workflow system
+- **Real-time Communication** - WebSocket support for live updates
+- **Vector Search** - Semantic search for policy retrieval
+- **Chat History** - Persistent conversation tracking
+- **User Authentication** - Supabase integration
+- **File Upload Support** - Document ingestion for policies
+- **Admin Dashboard** - Policy management interface
 
 ### Technical Features
 
-- ✅ **Async Processing** - Non-blocking request handling
-- ✅ **Redis Caching** - State and event management
-- ✅ **Error Handling** - Comprehensive error recovery
-- ✅ **Logging** - Detailed request/response logging
-- ✅ **Docker Support** - Full containerization
-- ✅ **API Documentation** - Interactive Swagger UI
+- **Async Processing** - Non-blocking request handling
+- **Redis Caching** - State and event management
+- **Error Handling** - Comprehensive error recovery
+- **Logging** - Detailed request/response logging
+- **Docker Support** - Full containerization
+- **API Documentation** - Interactive Swagger UI
 
 ---
 
-## 🔧 Prerequisites
+## Prerequisites
 
 ### System Requirements
 
@@ -197,7 +176,7 @@ Context Augmentation → Response Generation
 
 ---
 
-## 📦 Installation
+## Installation
 
 ### Option 1: Local Development Setup
 
@@ -281,7 +260,7 @@ docker-compose logs -f
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Local Development
 
@@ -345,7 +324,7 @@ Services will be available at:
 
 ---
 
-## ⚙️ Configuration
+## Configuration
 
 ### Environment Variables
 
@@ -394,7 +373,7 @@ NODE_ENV=development
 
 ---
 
-## 🏃 Running the Project
+## Running the Project
 
 ### Make Commands (Recommended)
 
@@ -464,7 +443,7 @@ redis-server
 
 ---
 
-## 📚 API Documentation
+## API Documentation
 
 ### Interactive Documentation
 
@@ -551,7 +530,7 @@ Response:
 
 ---
 
-## 📂 Project Structure
+## Project Structure
 
 ```
 multi-agent-hr-assistant/
@@ -620,7 +599,7 @@ multi-agent-hr-assistant/
 
 ---
 
-## 🧠 Agent Interaction Flow
+## Agent Interaction Flow
 
 ### Example: User Asks "What's my leave balance?"
 
@@ -673,7 +652,7 @@ multi-agent-hr-assistant/
 
 ---
 
-## 🧪 Testing
+## Testing
 
 ### Run All Tests
 
@@ -715,7 +694,7 @@ pytest -m "integration"        # Only integration tests
 
 ---
 
-## 🐳 Docker Deployment
+## Docker Deployment
 
 ### Build Docker Images
 
@@ -780,7 +759,7 @@ make docker-clean
 
 ---
 
-## 👨‍💻 Development
+## Development
 
 ### Code Quality
 
@@ -876,7 +855,7 @@ Uses pylint for code quality analysis
 
 ---
 
-## 🔍 Troubleshooting
+## Troubleshooting
 
 ### Issue: "ModuleNotFoundError: No module named 'xxx'"
 
@@ -973,7 +952,7 @@ make docker-build
 
 ---
 
-## 📖 Additional Resources
+## Additional Resources
 
 ### Documentation
 
@@ -998,7 +977,7 @@ make docker-build
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome! Please follow these steps:
 
@@ -1019,13 +998,13 @@ Contributions are welcome! Please follow these steps:
 
 ---
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see LICENSE file for details.
 
 ---
 
-## 👥 Support
+## Support
 
 For issues, questions, or suggestions:
 
